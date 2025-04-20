@@ -1,0 +1,46 @@
+{
+  "name": "comfy-code",
+  "version": "0.6.1",
+  "description": "A simple framework for generating and running comfy graphs from typescript.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "ts-node --esm ./src/ComfyInterface.test.ts",
+    "import": "node ./scripts/import-comfy.ts",
+    "build": "tsc && npm run build:cli",
+    "build:cli": "esbuild scripts/import-comfy.ts --bundle --platform=node --outfile=bin/import-comfy.cjs",
+    "prepublishOnly": "npm run build"
+  },
+  "bin": {
+    "import-comfy": "bin/import-comfy.cjs"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "exports": {
+    "./*": "./dist/*.js",
+    ".": "./dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiriri/comfy-code.git"
+  },
+  "keywords": [
+    "comfyui"
+  ],
+  "author": "Sven Hollesen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kiriri/comfy-code/issues"
+  },
+  "homepage": "https://github.com/kiriri/comfy-code#readme",
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "commander": "^13.1.0",
+    "esbuild": "^0.25.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
