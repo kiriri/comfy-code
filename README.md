@@ -23,6 +23,10 @@ This project requires node version 23 or newer!
 Make sure your ComfyUI Server instance is running.  
 Then generate ComfyUI Typescript classes (you will need to run this command every time you install new Nodes in ComfyUI)  
 
+```typescript
+npx import-comfy
+```
+
 By default comfy-code will expect your server to run on `http://127.0.0.1:8188`.  
 If you use different settings, check `npx import-comfy --help` for options.
 
