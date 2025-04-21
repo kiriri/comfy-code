@@ -5,7 +5,6 @@ import { SaveImage } from "../imports/image/SaveImage";
 import { CLIPTextEncode } from "../imports/conditioning/CLIPTextEncode";
 import { CheckpointLoaderSimple } from "../imports/loaders/CheckpointLoaderSimple";
 import { KSampler } from "../imports/sampling/KSampler";
-import { ComfyInput, ComfyNode } from "../src/ComfyNode";
 import { EmptyLatentImage } from "../imports/latent/EmptyLatentImage";
 import { VAEDecode } from "../imports/latent/VAEDecode";
 import { LoraLoader } from "../imports/loaders/LoraLoader";
@@ -16,6 +15,8 @@ import { CLIPSetLastLayer } from "../imports/conditioning/CLIPSetLastLayer";
 
 import { LoadImage } from "../imports/image/LoadImage";
 import { ImageScale } from "../imports/image/upscaling/ImageScale";
+
+import { ComfyInput, ComfyNode } from "comfy-code";
 
 
 export type ExtractInputType<C extends ComfyInput<any>> = C extends ComfyInput<infer O> ? O : never;

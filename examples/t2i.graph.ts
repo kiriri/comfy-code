@@ -2,12 +2,11 @@ import { SaveImage } from "../imports/image/SaveImage";
 import { CLIPTextEncode } from "../imports/conditioning/CLIPTextEncode";
 import { CheckpointLoaderSimple } from "../imports/loaders/CheckpointLoaderSimple";
 import { KSampler } from "../imports/sampling/KSampler";
-import { ComfyInput, ComfyNode } from "../src/ComfyNode";
 import { EmptyLatentImage } from "../imports/latent/EmptyLatentImage";
 import { VAEDecode } from "../imports/latent/VAEDecode";
 import { LoraLoader } from "../imports/loaders/LoraLoader";
 
-import { ComfyInterface } from "comfy-code";
+import { ComfyInterface, ComfyInput, ComfyNode } from "comfy-code";
 const comfy = new ComfyInterface('http://127.0.0.1:8188');
 
 export type ExtractInputType<C extends ComfyInput<any>> = C extends ComfyInput<infer O> ? O : never;

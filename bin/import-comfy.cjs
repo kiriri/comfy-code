@@ -3561,7 +3561,7 @@ async function run() {
             required
           };
         }
-        let is_enum = Array.isArray(opts[0]);
+        const is_enum = Array.isArray(opts[0]);
         if (opts.length === 1) {
           return {
             name: k,
