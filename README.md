@@ -30,7 +30,7 @@ If you use different settings, check `npx import-comfy --help` for options.
 
 ## Writing your first graph
 
-(See the examples folder in this repository for complete examples)  
+(See the [examples](examples) folder in this repository for complete examples. The [t2i](examples/t2i.graph.ts) example is explained below)  
 Use 
 
 ```typescript
