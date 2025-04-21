@@ -73,45 +73,62 @@ async function run()
             }
         });
 
-        const inputs = ([...Object.entries(v.input.required ?? {}).map(v => [...v, true]), ...Object.entries(v.input.optional ?? {}).map(v => [...v, false])]).map(([k, v, required]) =>
+        if(clean_key === "KSampler")
         {
-            if (typeof v === "string")
+            console.dir(v,{
+                depth:Infinity
+            })
+        }
+
+        const inputs = (
+            [
+                ...Object.entries(v.input.required ?? {}).map(v => [...v, true]), 
+                ...Object.entries(v.input.optional ?? {}).map(v => [...v, false])
+                ]).map(([k, opts, required]) =>
+        {
+            if (typeof opts === "string")
             {
                 return {
                     name: k,
-                    type: v,
+                    type: opts,
                     required
                 }
             }
 
-            if (v.length === 0)
+            else if(Array.isArray(opts))
             {
-                return {
-                    name: k,
-                    type: k,
-                    required
+                if (opts.length === 0)
+                {
+                    return {
+                        name: k,
+                        type: k,
+                        required
+                    }
+                }
+
+                const is_enum = Array.isArray(opts[0]);
+
+                if (opts.length === 1)
+                {
+                    return {
+                        name: k,
+                        type: opts[0],
+                        required:is_enum?false:required
+                    }
+                }
+
+                if (opts.length > 1)
+                {
+                    return {
+                        name: k,
+                        type: opts[0],
+                        ...opts[1],
+                        required: is_enum?false:("default" in opts[1] ? false : required), 
+                    }
                 }
             }
 
-            if (v.length === 1)
-            {
-                return {
-                    name: k,
-                    type: v[0],
-                    required
-                }
-            }
-
-            if (v.length > 1)
-            {
-                return {
-                    name: k,
-                    type: v[0],
-                    ...v[1],
-                    required
-                }
-            }
-
+            console.log(opts);
             throw new Error("wtf");
         });
 
@@ -210,7 +227,7 @@ export class ${clean_key} extends ComfyNode
         ${inputs.map(x => `"${x.name}"` + ": ComfyInput<" + input_to_type(x) + ">").join(",\n")}
     };
     
-    constructor(initial_values?: {${inputs.map(x => `"${x.name}"` + "?: ComfyOutput<any> | " + input_to_type(x)).join(",\n")}})
+    constructor(initial_values?: {${inputs.map(x => `"${x.name}"` + (!x.required?"?":"")+": ComfyOutput<"+input_to_type(x)+"> | " + input_to_type(x)).join(",\n")}})
     {
         super();
         this.initialize(initial_values);

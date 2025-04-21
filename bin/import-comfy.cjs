@@ -3538,36 +3538,47 @@ async function run() {
         is_list: v.output_is_list[i]
       };
     });
-    const inputs = [...Object.entries(v.input.required ?? {}).map((v2) => [...v2, true]), ...Object.entries(v.input.optional ?? {}).map((v2) => [...v2, false])].map(([k, v2, required]) => {
-      if (typeof v2 === "string") {
+    if (clean_key === "KSampler") {
+      console.dir(v, {
+        depth: Infinity
+      });
+    }
+    const inputs = [
+      ...Object.entries(v.input.required ?? {}).map((v2) => [...v2, true]),
+      ...Object.entries(v.input.optional ?? {}).map((v2) => [...v2, false])
+    ].map(([k, opts, required]) => {
+      if (typeof opts === "string") {
         return {
           name: k,
-          type: v2,
+          type: opts,
           required
         };
+      } else if (Array.isArray(opts)) {
+        if (opts.length === 0) {
+          return {
+            name: k,
+            type: k,
+            required
+          };
+        }
+        let is_enum = Array.isArray(opts[0]);
+        if (opts.length === 1) {
+          return {
+            name: k,
+            type: opts[0],
+            required: is_enum ? false : required
+          };
+        }
+        if (opts.length > 1) {
+          return {
+            name: k,
+            type: opts[0],
+            ...opts[1],
+            required: is_enum ? false : "default" in opts[1] ? false : required
+          };
+        }
       }
-      if (v2.length === 0) {
-        return {
-          name: k,
-          type: k,
-          required
-        };
-      }
-      if (v2.length === 1) {
-        return {
-          name: k,
-          type: v2[0],
-          required
-        };
-      }
-      if (v2.length > 1) {
-        return {
-          name: k,
-          type: v2[0],
-          ...v2[1],
-          required
-        };
-      }
+      console.log(opts);
       throw new Error("wtf");
     });
     try {
@@ -3636,7 +3647,7 @@ export class ${clean_key} extends ComfyNode
         ${inputs.map((x) => `"${x.name}": ComfyInput<` + input_to_type2(x) + ">").join(",\n")}
     };
     
-    constructor(initial_values?: {${inputs.map((x) => `"${x.name}"?: ComfyOutput<any> | ` + input_to_type2(x)).join(",\n")}})
+    constructor(initial_values?: {${inputs.map((x) => `"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + input_to_type2(x) + "> | " + input_to_type2(x)).join(",\n")}})
     {
         super();
         this.initialize(initial_values);
