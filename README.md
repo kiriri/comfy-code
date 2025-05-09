@@ -20,9 +20,9 @@ This project requires node version 23 or newer!
 
 `npm i comfy-code`  
 
-If you do not have ts-node and typescript installed globally, install it locally  
+If you do not have tsx, ts-node and typescript installed globally, install them locally  
 
-`npm i -D ts-node typescript`
+`npm i -D tsx typescript ts-node`
 
 Make sure your ComfyUI Server instance is running.  
 Then generate ComfyUI Typescript classes (you will need to run this command every time you install new Nodes in ComfyUI)  
@@ -91,6 +91,12 @@ In this case we want to run our graph, so we call
 
 ```typescript
 const promptResult = await comfy.executePrompt(active_group);
+```
+
+Now all that's left is to run the script, which I use `tsx` for.  
+Example:  
+```typescript
+npx tsx ./src/test.ts
 ```
 
 And that's it. Your generated graph is being processed in Comfy.
