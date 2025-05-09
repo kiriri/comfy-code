@@ -20,12 +20,18 @@ This project requires node version 23 or newer!
 
 `npm i comfy-code`  
 
+If you do not have ts-node and typescript installed globally, install it locally  
+
+`npm i -D ts-node typescript`
+
 Make sure your ComfyUI Server instance is running.  
 Then generate ComfyUI Typescript classes (you will need to run this command every time you install new Nodes in ComfyUI)  
 
 ```typescript
 npx import-comfy
 ```
+
+This should have created an `imports` folder in your current directory, which contains classes for each and every node in Comfy.  
 
 By default comfy-code will expect your server to run on `http://127.0.0.1:8188`.  
 If you use different settings, check `npx import-comfy --help` for options.
@@ -42,13 +48,20 @@ const active_group = ComfyNode.new_active_group();
 ```
 
 to get an array which will automatically store all subsequently created ComfyNodes.  
-Then start by creating a node which loads a checkpoint, like 
+You can omit this if you want to keep track of all your nodes yourself.  
+
+Start by creating a node which loads a checkpoint, like 
 
 ```typescript
 const load_checkpoint = new CheckpointLoaderSimple({ ckpt_name:'checkpoint-name' });
 ```
 
-. If everything works correctly, ckpt_name should have intellisense which reflects your currently installed models.  
+. Your IDE should give you the ability to auto import the CheckpointLoaderSimple node from your imports folder. Otherwise you must do so manually like  
+```typescript
+import { CheckpointLoaderSimple } from "/imports/loaders/CheckpointLoaderSimple";
+```
+
+If everything works correctly, ckpt_name should have intellisense which reflects your currently installed models.  
 When you create a Node like that, the arguments represent the incoming connections into that node. They can be either primitive values or references to outputs of other nodes.  
 Let's create our clip text encoder nodes next:  
 
