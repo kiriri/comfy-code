@@ -101,10 +101,21 @@ npx tsx ./src/test.ts
 
 And that's it. Your generated graph is being processed in Comfy.
 
+## Importing an existing workflow
+
+You can turn a json workflow file into a typescript script by using the `import-comfy-workflow` script.  
+Example:  
+
+```bash
+npx import-comfy-workflow -i ~/Downloads/Unsaved\ Workflow.json -f -o ./test/workflows/workflow.ts
+```
+
+Use the f flag to generate a script which will execute the graph as a prompt when run. Omit the f flag to just generate the graph.  
+Use --help for more info.  
+
 ## Scope/Future of the project  
 This is a side project. Pull requests that improve existing features will be merged. Bugs will be fixed, feature requests will likely be ignored.
 
-Having said that, one feature I would like to implement when I find the time is a Workflow to Typescript command line tool, which takes an image or json and turns it into comfy-code typescript.
-Another feature I would like is websocket integration into ComfyInterface.  
+The only planned feature at the moment is websocket integration in the ComfyInterface (for loading bars in the console).  
 
 Other than that I view the project as feature complete.
