@@ -13,6 +13,68 @@ export type JSON_ComfyNode = {
     }
 }
 
+
+// This is what a legacy workflow file contains
+export type JSON_Workflow = {
+    id: string,
+    revision: number;
+    last_node_id: number;
+    last_link_id: number;
+    nodes: {
+        id: number;
+        type: string;
+        pos: [x: number, y: number];
+        size: [width: number, height: number];
+        flags: {};
+        order: number;
+        mode: number;
+        inputs: Array<{ name: string; type: string; link?: number, shape?: number }>;
+        outputs: Array<{ name: string; type: string; links?: number[], slot_index?: number, shape?: number }>;
+        properties: {
+            cnr_id?: string;
+            aux_id?: string;
+            ver: string; // major.minor.patch
+            "Node name for S&R": string;
+        }
+        widgets_values: any[];
+        color: string; // hex
+        bgcolor: string; // hex
+    }[],
+    links: [x0: number, y0: number, x1: number, y1: number, some_id: number, socket_type: string]
+    groups: {
+        id: number;
+        title: string;
+        bounding: [x: number, y: number, width: number, height: number];
+        color: string; // hex
+        font_size: number;
+        flags: {};
+    }[],
+    config: {},
+    extra: {
+        ds: {
+            scale: number, // semi normalized
+            offset: [
+                x: number,
+                y: number
+            ]
+        },
+        frontendVersion: string, // major.minor.patch
+        VHS_latentpreview: boolean,
+        VHS_latentpreviewrate: number,
+        VHS_MetadataImage: boolean,
+        VHS_KeepIntermediate: boolean
+    },
+    version: number // major.minor
+}
+
+// And this is what the new api workflow file looks like.
+export type JSON_Workflow_API = Record<string, JSON_ComfyNode & {
+    _meta: {
+        title: string
+    }
+}>
+
+
 // Any value that can is passed into a ComfyNode
 // This can be either an atomic value, like a string or a number, or a reference to another node's output.
 export type JSON_ValueRef = [target_node_uid: string, output_socket_index: number] | string | number | boolean
@@ -34,7 +96,8 @@ export type JSON_ComfyPrimitiveDeclaration =
         min?: number,
         max?: number,
         step?: number,
-        round?: number
+        round?: number;
+        control_after_generate?: true; // terrible border case. Any input that ends with 'seed' and has this field will have an extra widget after the seed int widget. 
     }
 ]
 | [
@@ -73,6 +136,11 @@ export type JSON_ComfyNodeTypes = {
                 [name: string]: JSON_ComfyPrimitiveDeclaration
             }
         },
+        input_order: {
+            required: string[];
+            optional?: string[];
+            hidden?: string[];
+        },
         // Unique name
         name: string,
         // Unique names of all the outputs
@@ -83,6 +151,7 @@ export type JSON_ComfyNodeTypes = {
         output_name: string[],
         // Is this node an output? Useful for evaluating if a graph is valid.
         output_node: boolean;
+        python_module: 'nodes';
     }
 }
 
