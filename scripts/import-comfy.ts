@@ -2,37 +2,32 @@
 
 import fs from 'fs';
 import path from 'path';
-import {program} from 'commander';
+import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
+import { clean_key as get_clean_key, ensure_directory, get_node_path } from './shared.js';
 
-program
-  .option('-p, --port <number>', 'Port number', '8188')
-  .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
-  .option('-o, --output <path>', 'Output directory', './imports/')
-  .parse(process.argv);
 
-const options = program.opts();
-
-console.log(options);
-
-const PORT = options.port;
-const URL = options.url;
-const output_path = options.output;
-
-console.log(`Server URL: ${URL}`);
-console.log(`Port: ${PORT}`);
-console.log(`Output path: ${output_path}`);
-
-function ensure_directory(path: string)
-{
-    if (!fs.existsSync(path))
-    {
-        fs.mkdirSync(path, { recursive: true });
-    }
-}
 
 async function run()
 {
+    program
+        .option('-p, --port <number>', 'Port number', '8188')
+        .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
+        .option('-o, --output <path>', 'Output directory', './imports/')
+        .parse(process.argv);
+
+    const options = program.opts();
+
+    console.log(options);
+
+    const PORT = options.port;
+    const URL = options.url;
+    const output_path = options.output;
+
+    console.log(`Server URL: ${URL}`);
+    console.log(`Port: ${PORT}`);
+    console.log(`Output path: ${output_path}`);
+
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
     const res = await comfy.fetchNodes();
 
@@ -40,29 +35,9 @@ async function run()
     {
         const v = res[key];
 
+        const clean_key = get_clean_key(key);
 
-        const clean_key = key
-            .replace(/[\s\\\/"']/g, '')
-            .replace("+", "Plus")
-            .replace(/[(:]/g, "_")
-            .replace(")", "");
-
-        let full_path = output_path;
-
-        if (v.category)
-        {
-            let path = v.category.split('/');
-
-            for (let i = 0; i < path.length; i++)
-            {
-                let partial_path = output_path + path.slice(0, i + 1).join('/');
-                ensure_directory(partial_path);
-            }
-
-            full_path = output_path + path.join('/');
-        }
-
-        full_path = path.join(full_path, clean_key + '.ts');
+        let full_path = get_node_path(output_path, v)   
 
         const outputs = v.output.map((x, i) =>
         {
@@ -73,64 +48,58 @@ async function run()
             }
         });
 
-        if(clean_key === "KSampler")
-        {
-            console.dir(v,{
-                depth:Infinity
-            })
-        }
 
         const inputs = (
             [
-                ...Object.entries(v.input.required ?? {}).map(v => [...v, true]), 
+                ...Object.entries(v.input.required ?? {}).map(v => [...v, true]),
                 ...Object.entries(v.input.optional ?? {}).map(v => [...v, false])
-                ]).map(([k, opts, required]) =>
-        {
-            if (typeof opts === "string")
+            ]).map(([k, opts, required]) =>
             {
-                return {
-                    name: k,
-                    type: opts,
-                    required
-                }
-            }
-
-            else if(Array.isArray(opts))
-            {
-                if (opts.length === 0)
+                if (typeof opts === "string")
                 {
                     return {
-                        name: k,
-                        type: k,
+                        name: k as string,
+                        type: opts,
                         required
                     }
                 }
 
-                const is_enum = Array.isArray(opts[0]);
-
-                if (opts.length === 1)
+                else if (Array.isArray(opts))
                 {
-                    return {
-                        name: k,
-                        type: opts[0],
-                        required:is_enum?false:required
+                    if (opts.length === 0)
+                    {
+                        return {
+                            name: k as string,
+                            type: k as string,
+                            required
+                        }
+                    }
+
+                    const is_enum = Array.isArray(opts[0]);
+
+                    if (opts.length === 1)
+                    {
+                        return {
+                            name: k as string,
+                            type: opts[0],
+                            required: is_enum ? false : required
+                        }
+                    }
+
+                    if (opts.length > 1)
+                    {
+                        return {
+                            name: k as string,
+                            type: opts[0],
+                            ...opts[1],
+                            required: is_enum ? false : ("default" in opts[1] ? false : required),
+                        }
                     }
                 }
 
-                if (opts.length > 1)
-                {
-                    return {
-                        name: k,
-                        type: opts[0],
-                        ...opts[1],
-                        required: is_enum?false:("default" in opts[1] ? false : required), 
-                    }
-                }
-            }
-
-            console.log(opts);
-            throw new Error("wtf");
-        });
+                console.log(opts);
+                throw new Error("wtf");
+            });
 
         try
         {
@@ -169,8 +138,7 @@ async function run()
                 // It's an enum array
                 else
                 {
-                    // _type
-                    // console.log(_type)
+
                     if (_type.length === 0)
                     {
                         type = "any";
@@ -219,7 +187,7 @@ export class ${clean_key} extends ComfyNode
     ${inputs.map((x, i) =>
             {
 
-                return `new ComfyInput<${input_to_type(x)}>(this, ${i}, "${x.name.replace("\'", "\\\'")}" ${'default' in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
+                return `new ComfyInput<${input_to_type(x)}>(this, ${i}, "${(x.name as string).replace("\'", "\\\'")}" ${'default' in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
             }).join(',\n')}
     ] as const;
 
@@ -227,7 +195,7 @@ export class ${clean_key} extends ComfyNode
         ${inputs.map(x => `"${x.name}"` + ": ComfyInput<" + input_to_type(x) + ">").join(",\n")}
     };
     
-    constructor(initial_values?: {${inputs.map(x => `"${x.name}"` + (!x.required?"?":"")+": ComfyOutput<"+input_to_type(x)+"> | " + input_to_type(x)).join(",\n")}})
+    constructor(initial_values?: {${inputs.map(x => `"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + input_to_type(x) + "> | " + input_to_type(x)).join(",\n")}})
     {
         super();
         this.initialize(initial_values);
@@ -246,4 +214,4 @@ export class ${clean_key} extends ComfyNode
 
 }
 
-run().catch(console.error);
+run()
