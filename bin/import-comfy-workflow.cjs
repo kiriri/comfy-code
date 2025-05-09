@@ -1141,7 +1141,7 @@ var require_suggestSimilar = __commonJS({
 // node_modules/commander/lib/command.js
 var require_command = __commonJS({
   "node_modules/commander/lib/command.js"(exports2) {
-    var EventEmitter = require("node:events").EventEmitter;
+    var EventEmitter2 = require("node:events").EventEmitter;
     var childProcess = require("node:child_process");
     var path3 = require("node:path");
     var fs3 = require("node:fs");
@@ -1151,7 +1151,7 @@ var require_command = __commonJS({
     var { Help: Help2, stripColor } = require_help();
     var { Option: Option2, DualOptions } = require_option();
     var { suggestSimilar } = require_suggestSimilar();
-    var Command2 = class _Command extends EventEmitter {
+    var Command2 = class _Command extends EventEmitter2 {
       /**
        * Initialize a new `Command`.
        *
@@ -3341,13 +3341,58 @@ var {
 } = import_index.default;
 
 // dist/ComfyInterface.js
+var import_node_crypto = require("node:crypto");
+var import_node_events = __toESM(require("node:events"), 1);
+var DEBUG = false;
+var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
+  socket;
+  events = new import_node_events.default();
+  constructor(socket) {
+    this.socket = socket;
+  }
+  static async connect(url = "ws://localhost:8188/") {
+    if (!url.endsWith("/"))
+      url += "/";
+    const socket = new WebSocket(url + `ws?clientId=${(0, import_node_crypto.randomUUID)()}`);
+    const result = new _ComfyWebsocketInstance(socket);
+    let { promise, reject, resolve } = Promise.withResolvers();
+    socket.addEventListener("open", (event) => {
+      if (DEBUG)
+        console.log("WebSocket connection established!");
+      resolve();
+    });
+    socket.addEventListener("message", (event) => {
+      if (DEBUG)
+        console.log("Message from server: ", event.data);
+      const data = JSON.parse(event.data);
+      result.events.emit("message", data);
+      result.events.emit(data.type, data.data);
+    });
+    socket.addEventListener("close", (event) => {
+      if (DEBUG)
+        console.log("WebSocket connection closed:", event.code, event.reason);
+    });
+    socket.addEventListener("error", (error) => {
+      console.error("WebSocket error:", error);
+    });
+    await promise;
+    return result;
+  }
+};
 var ComfyInterface = class {
   url;
+  _ws;
   constructor(url = "http://localhost:8188") {
     if (url.endsWith("/")) {
       url = url.slice(0, url.length - 1);
     }
     this.url = url;
+  }
+  async testWS() {
+    this._ws = await ComfyWebsocketInstance.connect(
+      /*this.url.replace(/^https?/,'ws')*/
+      this.url
+    );
   }
   async getJson(endpoint) {
     const response = await fetch(`${this.url}${endpoint}`);
@@ -3431,11 +3476,41 @@ var ComfyInterface = class {
   }
   /**
    * Execute a prompt
-   * @param prompt The prompt data to execute
+   * @param prompt The prompt data to execute.
+   * @param wait Wait until the prompt is done.
    */
-  async executePrompt(nodes) {
-    let result = await this.postJson("/prompt", { prompt: this.generate_json_prompt(nodes) });
-    return result;
+  async executePrompt(nodes, wait = false) {
+    if (wait) {
+      let unsubscribe2 = function() {
+        ws.events.off("progress", on_progress2);
+        ws.events.off("status", on_status);
+      }, on_progress2 = function(data) {
+        if (result.prompt_id === data.prompt_id) {
+          if (wait === "print") {
+            console.log(`${(data.value / data.max * 100).toFixed(2)}% - ${data.value} / ${data.max}`);
+          }
+        }
+      };
+      var unsubscribe = unsubscribe2, on_progress = on_progress2;
+      if (!this._ws)
+        await this.testWS();
+      const ws = this._ws;
+      let result = await this.postJson("/prompt", { prompt: this.generate_json_prompt(nodes) });
+      const { promise, resolve, reject } = Promise.withResolvers();
+      const self = this;
+      async function on_status(data) {
+        let hist = await self.getHistoryItem(result.prompt_id);
+        if (hist?.status.completed) {
+          unsubscribe2();
+          resolve();
+        }
+      }
+      ws.events.on("progress", on_progress2);
+      ws.events.on("status", on_status);
+      await promise;
+      return result;
+    }
+    return await this.postJson("/prompt", { prompt: this.generate_json_prompt(nodes) });
   }
   /**
    * Interrupt current execution

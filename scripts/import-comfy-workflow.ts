@@ -5,7 +5,7 @@ import path from 'path';
 import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
 import { clean_key, get_node_path, sortNodesTopologically } from './shared.js';
-import type { JSON_ComfyNodeType, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
+import type { JSON_ComfyNodeTypes, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
 
 
 function ensure_directory(path: string)
@@ -111,7 +111,7 @@ async function run()
         // output sockets.
         let placeholders = new Map<string, {
             name: string,
-            type: JSON_ComfyNodeType
+            type: JSON_ComfyNodeTypes[string]
         }>();
 
 
