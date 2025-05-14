@@ -3364,7 +3364,6 @@ var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
       if (DEBUG)
         console.log("Message from server: ", event.data);
       const data = JSON.parse(event.data);
-      console.log(data);
       result.events.emit("message", data);
       result.events.emit(data.type, data.data);
     });
@@ -3531,7 +3530,6 @@ var ComfyInterface = class {
       const self = this;
       async function on_status(data) {
         let hist = await self.getHistoryItem(result.prompt_id);
-        console.log(hist);
         if (hist?.status.completed) {
           unsubscribe2();
           resolve();

@@ -284,7 +284,6 @@ export class ComfyInterface
                 // comfy will instantly return the cache of.
                 let hist = await self.getHistoryItem(result.prompt_id)
                 
-                console.log(hist);
                 if (hist?.status.completed)
                 {
                     unsubscribe();
