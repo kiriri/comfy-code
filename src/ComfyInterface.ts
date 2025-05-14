@@ -53,8 +53,6 @@ export class ComfyWebsocketInstance
 
             const data = JSON.parse(event.data);
 
-            console.log(data);
-
             result.events.emit('message', data);
             result.events.emit(data.type, data.data);
         });
