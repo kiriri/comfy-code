@@ -40,7 +40,7 @@ export type JSON_Workflow = {
         color: string; // hex
         bgcolor: string; // hex
     }[],
-    links: [x0: number, y0: number, x1: number, y1: number, some_id: number, socket_type: string]
+    links: [x0: number, y0: number, x1: number, y1: number, some_id: number, socket_type: string],
     groups: {
         id: number;
         title: string;
@@ -200,17 +200,15 @@ export type JSON_SystemStats = {
         embedded_python: boolean,
         argv: string[]
     },
-    devices: [
-        {
-            name: 'cuda:0 NVIDIA GeForce RTX 3070 : cudaMallocAsync',
-            type: 'cuda' | 'cpu' | string,
-            index: number, // usually 0 unless you have multiple gpus/cpus
-            vram_total: number,
-            vram_free: number,
-            torch_vram_total: number, // usually 0
-            torch_vram_free: number // usually 0
-        }
-    ]
+    devices: {
+        name: string, // like 'cuda:0 NVIDIA GeForce RTX 3070 : cudaMallocAsync'
+        type: 'cuda' | 'cpu' | string,
+        index: number, // usually 0 unless you have multiple gpus/cpus
+        vram_total: number,
+        vram_free: number,
+        torch_vram_total: number, // usually 0
+        torch_vram_free: number // usually 0
+    }[]
 };
 
 export type JSON_QueueItem = [
