@@ -6,8 +6,6 @@ import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
 import { clean_key as get_clean_key, ensure_directory, get_node_path } from './shared.js';
 
-
-
 async function run()
 {
     program
@@ -186,7 +184,6 @@ export class ${clean_key} extends ComfyNode
     _inputs = [
     ${inputs.map((x, i) =>
             {
-
                 return `new ComfyInput<${input_to_type(x)}>(this, ${i}, "${(x.name as string).replace("\'", "\\\'")}" ${'default' in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
             }).join(',\n')}
     ] as const;

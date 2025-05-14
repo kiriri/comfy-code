@@ -3365,6 +3365,7 @@ var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
       if (DEBUG)
         console.log("Message from server: ", event.data);
       const data = JSON.parse(event.data);
+      console.log(data);
       result.events.emit("message", data);
       result.events.emit(data.type, data.data);
     });
@@ -3388,19 +3389,40 @@ var ComfyInterface = class {
     }
     this.url = url;
   }
-  async testWS() {
-    this._ws = await ComfyWebsocketInstance.connect(
-      /*this.url.replace(/^https?/,'ws')*/
-      this.url
-    );
+  /**
+   * Create a Websocket connection to Comfy UI.
+   * This happens automatically when needed.
+   */
+  async initializeWebsocket() {
+    this._ws = await ComfyWebsocketInstance.connect(this.url);
   }
+  /**
+   * Generic GET request to the Comfy Server.
+   * Expects and parses a Json Response.
+   * @param endpoint
+   * @returns
+   */
   async getJson(endpoint) {
     const response = await fetch(`${this.url}${endpoint}`);
     return await response.json();
   }
+  /**
+   * Generic POST request to the Comfy Server.
+   * Expects and parses a Json Response.
+   * @param endpoint
+   * @param data
+   * @returns
+   */
   async postJson(endpoint, data) {
     return (await this.post(endpoint, data)).json();
   }
+  /**
+   * Generic POST request to the Comfy Server.
+   * Returns the raw response object.
+   * @param endpoint
+   * @param data
+   * @returns
+   */
   async post(endpoint, data) {
     return await fetch(`${this.url}${endpoint}`, {
       method: "POST",
@@ -3410,6 +3432,15 @@ var ComfyInterface = class {
       body: JSON.stringify(data)
     });
   }
+  /**
+   * Sends a generic POST request to the Comfy Server.
+   * Data is represented as a FormData object, which makes including
+   * Media data easier.
+   * Returns a parsed json object.
+   * @param endpoint
+   * @param formData
+   * @returns
+   */
   async postFormData(endpoint, formData) {
     const response = await fetch(`${this.url}${endpoint}`, {
       method: "POST",
@@ -3471,7 +3502,7 @@ var ComfyInterface = class {
    * @param nodes
    * @returns
    */
-  generate_json_prompt(nodes) {
+  generateJsonPrompt(nodes) {
     return Object.fromEntries(nodes.map((x) => [x.id, x.to_json()]));
   }
   /**
@@ -3487,19 +3518,21 @@ var ComfyInterface = class {
       }, on_progress2 = function(data) {
         if (result.prompt_id === data.prompt_id) {
           if (wait === "print") {
-            console.log(`${(data.value / data.max * 100).toFixed(2)}% - ${data.value} / ${data.max}`);
+            const progress = data.value / data.max;
+            console.log(`${(progress * 100).toFixed(2)}% - ${data.value} / ${data.max}`);
           }
         }
       };
       var unsubscribe = unsubscribe2, on_progress = on_progress2;
       if (!this._ws)
-        await this.testWS();
+        await this.initializeWebsocket();
       const ws = this._ws;
-      let result = await this.postJson("/prompt", { prompt: this.generate_json_prompt(nodes) });
+      let result = await this.postJson("/prompt", { prompt: this.generateJsonPrompt(nodes) });
       const { promise, resolve, reject } = Promise.withResolvers();
       const self = this;
       async function on_status(data) {
         let hist = await self.getHistoryItem(result.prompt_id);
+        console.log(hist);
         if (hist?.status.completed) {
           unsubscribe2();
           resolve();
@@ -3510,7 +3543,7 @@ var ComfyInterface = class {
       await promise;
       return result;
     }
-    return await this.postJson("/prompt", { prompt: this.generate_json_prompt(nodes) });
+    return await this.postJson("/prompt", { prompt: this.generateJsonPrompt(nodes) });
   }
   /**
    * Interrupt current execution
@@ -3572,6 +3605,17 @@ var ComfyInterface = class {
     }
     formData.append(type, imageData);
     return this.postFormData(`/upload/${type}`, formData);
+  }
+  /**
+   * Call this to close all connections.
+   * If you forget to call quit(), and you use websockets,
+   * then the program won't close by itself until this is called.
+   */
+  quit() {
+    if (this._ws) {
+      this._ws.socket.close();
+      this._ws = void 0;
+    }
   }
 };
 
@@ -3772,7 +3816,7 @@ const active_group = ComfyNode.new_active_group();
 
 ${nodeCreations.join("\n")}
 
-comfy.executePrompt(active_group);` : `${importStatements}
+comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));` : `${importStatements}
 
 ${nodeCreations.join("\n")}`;
   console.log(result);

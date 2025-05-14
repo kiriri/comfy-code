@@ -1,33 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { ComfyNode } from "./ComfyNode.js";
-import type { JSON_ComfyGraph, JSON_ComfyNodeTypes, JSON_History, JSON_HistoryEntry, JSON_PromptReturn, JSON_Queue, JSON_SystemStats } from "./JsonTypes.js";
+import type { JSON_ComfyGraph, JSON_ComfyNodeTypes, JSON_History, JSON_HistoryEntry, JSON_PromptReturn, JSON_Queue, JSON_SystemStats, JSON_WS_Progress, JSON_WS_Status } from "./JsonTypes.js";
 import EventEmitter from 'node:events';
 
 const DEBUG = false;
 
-interface StatusEventArg
-{
-    status: {
-        exec_info: {
-            queue_remaining: 0
-        }
-    },
-    sid?: string // only in the first message I think
-};
 
-interface ProgressEventArg
-{
-    value: number; // incrementing integer
-    max: number; // int
-    prompt_id: string; // uuid
-    node: null; // probably only a thing in the ui?
-};
 
 interface ComfyWebsocketEvents
 {
-    message: [StatusEventArg | ProgressEventArg];
-    status: [StatusEventArg];
-    progress: [ProgressEventArg];
+    message: [JSON_WS_Status | JSON_WS_Progress];
+    status: [JSON_WS_Status];
+    progress: [JSON_WS_Progress];
 }
 
 export class ComfyWebsocketInstance
@@ -69,6 +53,8 @@ export class ComfyWebsocketInstance
 
             const data = JSON.parse(event.data);
 
+            console.log(data);
+
             result.events.emit('message', data);
             result.events.emit(data.type, data.data);
         });
@@ -108,23 +94,48 @@ export class ComfyInterface
         this.url = url;
     }
 
-    async testWS()
+    /**
+     * Create a Websocket connection to Comfy UI.
+     * This happens automatically when needed. 
+     */
+    protected async initializeWebsocket()
     {
-        // node figures out the ws protocol itself. TODO : Check ws through https.
-        this._ws = await ComfyWebsocketInstance.connect(/*this.url.replace(/^https?/,'ws')*/this.url)
+        // ws protocol is inferred automatically
+        /*this.url.replace(/^https?/,'ws')*/
+        this._ws = await ComfyWebsocketInstance.connect(this.url)
     }
 
+    /**
+     * Generic GET request to the Comfy Server.
+     * Expects and parses a Json Response.
+     * @param endpoint 
+     * @returns 
+     */
     private async getJson(endpoint: string): Promise<any>
     {
         const response = await fetch(`${this.url}${endpoint}`);
         return await response.json();
     }
 
+    /**
+     * Generic POST request to the Comfy Server.
+     * Expects and parses a Json Response.
+     * @param endpoint 
+     * @param data 
+     * @returns 
+     */
     private async postJson(endpoint: string, data: any): Promise<any>
     {
         return (await this.post(endpoint, data)).json();
     }
 
+    /**
+     * Generic POST request to the Comfy Server.
+     * Returns the raw response object.
+     * @param endpoint 
+     * @param data 
+     * @returns 
+     */
     private async post(endpoint: string, data: any): Promise<Response>
     {
         return await fetch(`${this.url}${endpoint}`, {
@@ -136,6 +147,15 @@ export class ComfyInterface
         });
     }
 
+    /**
+     * Sends a generic POST request to the Comfy Server.
+     * Data is represented as a FormData object, which makes including
+     * Media data easier.
+     * Returns a parsed json object.
+     * @param endpoint 
+     * @param formData 
+     * @returns 
+     */
     private async postFormData(endpoint: string, formData: FormData): Promise<any>
     {
         const response = await fetch(`${this.url}${endpoint}`, {
@@ -215,7 +235,7 @@ export class ComfyInterface
      * @param nodes
      * @returns 
      */
-    generate_json_prompt(nodes: ComfyNode[]): JSON_ComfyGraph
+    generateJsonPrompt(nodes: ComfyNode[]): JSON_ComfyGraph
     {
         return Object.fromEntries(nodes.map(x => [x.id, x.to_json()]))
     }
@@ -232,11 +252,11 @@ export class ComfyInterface
         if (wait)
         {
             if (!this._ws)
-                await this.testWS();
+                await this.initializeWebsocket();
 
             const ws = this._ws!;
 
-            let result = await this.postJson('/prompt', { prompt: this.generate_json_prompt(nodes) }) as JSON_PromptReturn;
+            let result = await this.postJson('/prompt', { prompt: this.generateJsonPrompt(nodes) }) as JSON_PromptReturn;
 
             const { promise, resolve, reject } = Promise.withResolvers<void>();
 
@@ -246,25 +266,27 @@ export class ComfyInterface
                 ws.events.off("status", on_status);
             }
 
-            function on_progress(data: ProgressEventArg)
+            function on_progress(data: JSON_WS_Progress)
             {
+
                 if (result.prompt_id === data.prompt_id)
                 {
                     if(wait === 'print')
                     {
-                        console.log(`${((data.value / data.max) * 100).toFixed(2)}% - ${data.value} / ${data.max}` )
-                    }
-                    // TODO : 
+                        const progress = data.value / data.max;
+                        console.log(`${(progress * 100).toFixed(2)}% - ${data.value} / ${data.max}` )
+                    } 
                 }
             }
 
             const self = this;
-            async function on_status(data: StatusEventArg)
+            async function on_status(data: JSON_WS_Status)
             {
                 // we can't trust status or progress when it comes to duplicate prompts which
                 // comfy will instantly return the cache of.
                 let hist = await self.getHistoryItem(result.prompt_id)
                 
+                console.log(hist);
                 if (hist?.status.completed)
                 {
                     unsubscribe();
@@ -282,7 +304,7 @@ export class ComfyInterface
             return result;
         }
 
-        return await this.postJson('/prompt', { prompt: this.generate_json_prompt(nodes) }) as JSON_PromptReturn;
+        return await this.postJson('/prompt', { prompt: this.generateJsonPrompt(nodes) }) as JSON_PromptReturn;
 
 
     }
@@ -372,5 +394,19 @@ export class ComfyInterface
 
         formData.append(type, imageData);
         return this.postFormData(`/upload/${type}`, formData);
+    }
+
+    /**
+     * Call this to close all connections.
+     * If you forget to call quit(), and you use websockets,
+     * then the program won't close by itself until this is called.
+     */
+    quit()
+    {
+        if(this._ws)
+        {
+            this._ws.socket.close();
+            this._ws = undefined;
+        }
     }
 }

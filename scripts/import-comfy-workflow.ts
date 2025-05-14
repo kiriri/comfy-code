@@ -282,17 +282,12 @@ const active_group = ComfyNode.new_active_group();
 
 ${nodeCreations.join('\n')}
 
-comfy.executePrompt(active_group);`
+comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));`
         : `${importStatements}\n\n${nodeCreations.join('\n')}`;
 
     console.log(result);
 
     fs.writeFileSync(output_path, result);
-
-
-
-
-
 }
 
 run().catch(console.error);
