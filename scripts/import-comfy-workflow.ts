@@ -6,6 +6,7 @@ import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
 import { clean_key, get_node_path, sortNodesTopologically, write_file_with_confirmation } from './shared.js';
 import type { JSON_ComfyNodeTypes, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
+import ExifReader from 'exifreader';
 
 
 function ensure_directory(path: string)
@@ -56,7 +57,23 @@ async function run()
     // Parse the workflow file
     ///
 
-    const workflow: JSON_Workflow | JSON_Workflow_API = JSON.parse(fs.readFileSync(input_path, { encoding: "ascii" }));
+    // EXIF.
+
+    let workflow: JSON_Workflow | JSON_Workflow_API;
+
+    if(input_path.endsWith(".json"))
+        workflow = JSON.parse(fs.readFileSync(input_path, { encoding: "ascii" }));
+    // Otherwise it's presumably an image
+    else
+    {
+        if(!["jpg","jpeg","png","tiff","webp","gif","avif","heic","heif"].includes(path.extname(input_path).toLowerCase()))
+        {
+            console.warn("Unsupported input file format. Treating it like an exif image.")
+        }
+        const tags = await ExifReader.load(input_path);
+        
+        workflow = JSON.parse(tags.prompt.value ?? tags.description.value);
+    }
 
     // These nodes do not contribute to the graph at all (visual / documentation)
     const IGNORE_NODES = new Set(["Note"]);
@@ -289,9 +306,12 @@ comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));`
     console.log(result);
 
     if(!override)
-        write_file_with_confirmation(output_path, result);
+        write_file_with_confirmation(output_path, result, true);
     else
+    {
         fs.writeFileSync(output_path, result);
+        console.log(`File "${output_path}" has been created.`);
+    }
 }
 
 run().catch(console.error);

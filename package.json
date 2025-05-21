@@ -38,12 +38,14 @@
   },
   "homepage": "https://github.com/kiriri/comfy-code#readme",
   "devDependencies": {
-    "@types/cli-progress": "^3.11.6",
     "@types/node": "^22.14.1",
     "commander": "^13.1.0",
     "esbuild": "^0.25.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "exifreader": "^4.30.1"
   }
 }

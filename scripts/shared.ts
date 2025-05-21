@@ -220,7 +220,7 @@ export function sortNodesTopologically(workflow: Record<string, JSON_ComfyNode>)
  * @param output_path 
  * @param content 
  */
-export function write_file_with_confirmation(output_path: string, content: string)
+export function write_file_with_confirmation(output_path: string, content: string, fallback = false)
 {
   if (fs.existsSync(output_path)) 
   {
@@ -229,9 +229,13 @@ export function write_file_with_confirmation(output_path: string, content: strin
       output: process.stdout
     });
 
-    rl.question(`File "${output_path}" already exists. Overwrite? (y/n) `, (answer) =>
+    rl.question(`File "${output_path}" already exists. Overwrite? (${fallback ? 'Y' : 'y'}/${!fallback ? 'N' : 'n'}) `, (answer) =>
     {
       rl.close();
+      if(answer === "")
+        if(fallback)
+          answer = "y";
+
       if (answer.toLowerCase() === 'y')
       {
         fs.writeFileSync(output_path, content);
