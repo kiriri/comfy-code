@@ -1,17 +1,18 @@
 
 
 <div style="display:flex; justify-content:start; align-items:center; gap:16px;">
-    <img src="processed-icon.png" alt="alt text" width="200"/> 
+    <img src="github-assets/processed-icon.png" alt="Logo" width="200" /> 
     <div>
     <h1>
         Comfy-Code
     </h1>
-        <h2>
+    <h2>
         A simple framework for generating and running comfy graphs from typescript.
     </h2>
     <h3>
         Fully typed nodes. Write entire comfy graphs without ever having to open the ComfyUI Web Interface. 
     </h3>
+    <img src="github-assets/intellisense.png" alt="Example Intellisense"/>
     </div>
 </div>
 

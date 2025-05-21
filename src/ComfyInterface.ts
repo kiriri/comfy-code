@@ -2,10 +2,14 @@ import { randomUUID } from "node:crypto";
 import { ComfyNode } from "./ComfyNode.js";
 import type { JSON_ComfyGraph, JSON_ComfyNodeTypes, JSON_History, JSON_HistoryEntry, JSON_PromptReturn, JSON_Queue, JSON_SystemStats, JSON_WS_Progress, JSON_WS_Status } from "./JsonTypes.js";
 import EventEmitter from 'node:events';
+import chalk from "chalk";
+
+const unimportant = chalk.hex("#888");
+const error = chalk.hex("#f00").bgWhite;
+const warning = chalk.hex("#fa0");
+const success = chalk.hex("#0b0");
 
 const DEBUG = false;
-
-
 
 interface ComfyWebsocketEvents
 {
@@ -166,7 +170,7 @@ export class ComfyInterface
     /**
      * Fetch the Node Definition data for all node types
      */
-    async fetchNodes(): Promise<JSON_ComfyNodeTypes>
+    async getNodeTypes(): Promise<JSON_ComfyNodeTypes>
     {
         return this.getJson('/object_info');
     }
@@ -256,6 +260,13 @@ export class ComfyInterface
 
             let result = await this.postJson('/prompt', { prompt: this.generateJsonPrompt(nodes) }) as JSON_PromptReturn;
 
+            if(result.error)
+            {
+                console.log(error(`${result.error.type}: ${result.error.message} (${result.error.details}).`) )
+
+                return result;
+            }
+
             const { promise, resolve, reject } = Promise.withResolvers<void>();
 
             function unsubscribe()
@@ -272,7 +283,7 @@ export class ComfyInterface
                     if(wait === 'print')
                     {
                         const progress = data.value / data.max;
-                        console.log(`${(progress * 100).toFixed(2)}% - ${data.value} / ${data.max}` )
+                        console.log(unimportant(`${(progress * 100).toFixed(2)}% - ${data.value} / ${data.max}`) )
                     } 
                 }
             }
@@ -283,6 +294,12 @@ export class ComfyInterface
                 // we can't trust status or progress when it comes to duplicate prompts which
                 // comfy will instantly return the cache of.
                 let hist = await self.getHistoryItem(result.prompt_id)
+
+                if(DEBUG)
+                {
+                    console.log("History is ");
+                    console.log(hist);
+                }
                 
                 if (hist?.status.completed)
                 {
@@ -294,9 +311,10 @@ export class ComfyInterface
             ws.events.on("progress", on_progress);
             ws.events.on("status", on_status);
 
-
-
             await promise;
+
+            if(wait === 'print')
+                console.log(success(`Prompt Finished (${result.prompt_id})`))
 
             return result;
         }

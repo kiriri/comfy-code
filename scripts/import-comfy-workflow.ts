@@ -42,7 +42,7 @@ async function run()
     console.log(`Output path: ${output_path}`);
 
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
-    const all_nodes = await comfy.fetchNodes();
+    const all_nodes = await comfy.getNodeTypes();
 
     ///
     // Parse the workflow file

@@ -27,7 +27,7 @@ async function run()
     console.log(`Output path: ${output_path}`);
 
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
-    const res = await comfy.fetchNodes();
+    const res = await comfy.getNodeTypes();
 
     for (let key in res)
     {

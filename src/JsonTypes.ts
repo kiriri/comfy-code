@@ -232,6 +232,12 @@ export type JSON_PromptReturn = {
     prompt_id: string, // uuid
     number: number,
     node_errors: object, // unknown
+    error?:{
+        type:"invalid_prompt" | (string & {}),
+        message:string,
+        details:string, // eg "Node ID '#0'"
+        extra_info:object
+    }
 }
 
 /**
