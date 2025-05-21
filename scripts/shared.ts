@@ -252,3 +252,38 @@ export function write_file_with_confirmation(output_path: string, content: strin
     console.log(`File "${output_path}" has been created.`);
   }
 }
+
+/**
+ * Try each function one after another until one doesn't throw an error.
+ * @param fn 
+ */
+export async function try_all<T>(fns:(()=>T|Promise<T>)[]) : Promise<T|null>
+{
+  for(let fn of fns)
+  {
+    console.log(1);
+    try
+    {
+      let res = fn();
+
+      if(res instanceof Promise)
+      {
+        let failed = false;
+        res.catch(()=>failed = true);
+        let real_res = await res;
+        if(!failed)
+          return real_res;
+      }
+      else
+      {
+        return res;
+      }
+    }
+    catch(e){}
+    
+
+    
+  }
+
+  return null;
+}

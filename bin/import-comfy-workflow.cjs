@@ -12441,6 +12441,25 @@ function write_file_with_confirmation(output_path, content, fallback = false) {
     console.log(`File "${output_path}" has been created.`);
   }
 }
+async function try_all(fns) {
+  for (let fn of fns) {
+    console.log(1);
+    try {
+      let res = fn();
+      if (res instanceof Promise) {
+        let failed = false;
+        res.catch(() => failed = true);
+        let real_res = await res;
+        if (!failed)
+          return real_res;
+      } else {
+        return res;
+      }
+    } catch (e) {
+    }
+  }
+  return null;
+}
 
 // scripts/import-comfy-workflow.ts
 var import_exifreader = __toESM(require_exif_reader(), 1);
@@ -12469,11 +12488,21 @@ async function run() {
   if (input_path.endsWith(".json"))
     workflow = JSON.parse(import_fs2.default.readFileSync(input_path, { encoding: "ascii" }));
   else {
-    if (!["jpg", "jpeg", "png", "tiff", "webp", "gif", "avif", "heic", "heif"].includes(import_path2.default.extname(input_path).toLowerCase())) {
+    if (![".jpg", ".jpeg", ".png", ".tiff", ".webp", ".gif", ".avif", ".heic", ".heif"].includes(import_path2.default.extname(input_path).toLowerCase())) {
       console.warn("Unsupported input file format. Treating it like an exif image.");
     }
     const tags = await import_exifreader.default.load(input_path);
-    workflow = JSON.parse(tags.prompt.value ?? tags.description.value);
+    workflow = await try_all([
+      () => JSON.parse(tags.prompt?.value),
+      () => JSON.parse(tags.description?.value),
+      // ()=>JSON.parse(tags.Make?.value?.[0].replace(/^workflow:/,"")),
+      () => JSON.parse(tags.Model?.value?.[0].replace(/^prompt:/, ""))
+    ]);
+    if (workflow === null) {
+      console.log(tags);
+      console.log("Fatal Error: Failed to find workflow data in the image's metadata.");
+      return;
+    }
   }
   const IGNORE_NODES = /* @__PURE__ */ new Set(["Note"]);
   function check_if_nodes_installed(nodes) {

@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
-import { clean_key, get_node_path, sortNodesTopologically, write_file_with_confirmation } from './shared.js';
+import { clean_key, get_node_path, sortNodesTopologically, try_all, write_file_with_confirmation } from './shared.js';
 import type { JSON_ComfyNodeTypes, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
 import ExifReader from 'exifreader';
 
@@ -66,13 +66,27 @@ async function run()
     // Otherwise it's presumably an image
     else
     {
-        if(!["jpg","jpeg","png","tiff","webp","gif","avif","heic","heif"].includes(path.extname(input_path).toLowerCase()))
+        if(![".jpg",".jpeg",".png",".tiff",".webp",".gif",".avif",".heic",".heif"].includes(path.extname(input_path).toLowerCase()))
         {
             console.warn("Unsupported input file format. Treating it like an exif image.")
         }
         const tags = await ExifReader.load(input_path);
-        
-        workflow = JSON.parse(tags.prompt.value ?? tags.description.value);
+
+        workflow = await try_all([
+            ()=>JSON.parse(tags.prompt?.value),
+            // ()=>JSON.parse(tags.description?.value),
+            ()=>JSON.parse(tags.Make?.value?.[0].replace(/^workflow:/,"")),
+            ()=>JSON.parse(tags.Model?.value?.[0].replace(/^prompt:/,"")),
+        ]);
+
+        if(workflow === null)
+        {
+            console.log(tags);
+            
+            console.log("Fatal Error: Failed to find workflow data in the image's metadata.");
+            
+            return;
+        }
     }
 
     // These nodes do not contribute to the graph at all (visual / documentation)
