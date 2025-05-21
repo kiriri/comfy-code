@@ -3625,7 +3625,93 @@ function ensure_directory(path2) {
   }
 }
 function clean_key(key) {
-  return key.replace(/[\s\\\/"']/g, "").replace("+", "Plus").replace(/[(:]/g, "_").replace(")", "");
+  key = key.replace(/[\s]/g, "").replace("+", "Plus");
+  if (key.length === 0) {
+    return "_";
+  }
+  const validFirstChar = /^[\p{L}_$]/u;
+  const validRestChars = /^[\p{L}\p{N}_$]$/u;
+  let firstChar = key.charAt(0);
+  let restChars = key.slice(1);
+  if (!validFirstChar.test(firstChar)) {
+    firstChar = "_";
+  }
+  const processedRest = Array.from(restChars).map((char) => validRestChars.test(char) ? char : "_").join("");
+  const candidate = firstChar + processedRest;
+  const reservedKeywords = /* @__PURE__ */ new Set([
+    "abstract",
+    "async",
+    "await",
+    "any",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "as",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "yield",
+    "boolean",
+    "constructor",
+    "declare",
+    "get",
+    "module",
+    "require",
+    "number",
+    "set",
+    "string",
+    "symbol",
+    "type",
+    "from",
+    "of",
+    "is",
+    "namespace",
+    "never",
+    "unknown",
+    "readonly",
+    "object",
+    "undefined",
+    "bigint"
+  ]);
+  return reservedKeywords.has(candidate) ? `_${candidate}` : candidate;
 }
 function get_node_path(import_path2, node) {
   let key = clean_key(node.name);

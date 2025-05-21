@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
-import { clean_key, get_node_path, sortNodesTopologically } from './shared.js';
+import { clean_key, get_node_path, sortNodesTopologically, write_file_with_confirmation } from './shared.js';
 import type { JSON_ComfyNodeTypes, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
 
 
@@ -30,6 +30,7 @@ async function run()
         .option('-o, --output <path>', 'Output file path', './workflows/workflow.ts')
         .option('-m, --imports <path>', 'Import path (Relative to the workflow file)', '../imports/')
         .option('-f, --full', 'Full template, such that running the resulting file runs the workflow.', false)
+        .option('-y, --override', 'Override any existing file without asking.', false)
         .parse(process.argv);
 
     const options = program.opts();
@@ -42,6 +43,7 @@ async function run()
     const input_path: string = options.input;
     const imports_path: string = options.imports;
     const full_workflow: boolean = options.full;
+    const override: boolean = options.override;
 
     console.log(`Server URL: ${URL}`);
     console.log(`Port: ${PORT}`);
@@ -56,11 +58,15 @@ async function run()
 
     const workflow: JSON_Workflow | JSON_Workflow_API = JSON.parse(fs.readFileSync(input_path, { encoding: "ascii" }));
 
+    // These nodes do not contribute to the graph at all (visual / documentation)
+    const IGNORE_NODES = new Set(["Note"]);
 
     function check_if_nodes_installed(nodes: string[])
     {
         // Check if all nodes are installed
-        const uninstalled_nodes = nodes.filter(node => !all_nodes[node]);
+        const uninstalled_nodes = nodes
+            .filter(node => !all_nodes[node])
+            .filter(node=> !IGNORE_NODES.has(node));
 
         if (uninstalled_nodes.length > 0)
         {
@@ -72,22 +78,6 @@ async function run()
 
         return true;
     }
-
-    // function generate_imports(nodes:string[])
-    // {
-    //         // Check if all nodes are installed
-    //         const uninstalled_nodes = nodes.filter(node => !all_nodes[node]);
-
-    //         if (uninstalled_nodes.length > 0)
-    //         {
-    //             console.log("ERROR: ");
-    //             console.log("Some of the nodes in this workflow could not be found in your ComfyUI installation. Please make sure everything is installed and loaded correctly.");
-    //             console.log([...new Set(uninstalled_nodes)].join(", "));
-    //             return false;
-    //         }
-
-    //         return true;
-    // }
 
     // All Node names this script will require.
     const imports = new Set<string>();
@@ -101,7 +91,8 @@ async function run()
         // Sort the nodes such that no node is created before all the nodes it depends on were created.
         const sorting = sortNodesTopologically(workflow);
 
-        const nodes = sorting.map(id=>[id,(workflow as JSON_Workflow_API)[id]] as const);
+        const nodes = sorting.map(id=>[id,(workflow as JSON_Workflow_API)[id]] as const).filter(([k,v])=>!IGNORE_NODES.has(v.class_type));
+
 
         if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
             return;
@@ -144,14 +135,21 @@ async function run()
 
             imports.add(baseName);
 
-            return `const ${varName} = new ${node.class_type}({\n${Object.entries(node.inputs).map(([k,v])=>k + ':' + get_value(v))}});`
+            let paramStr = Object.entries(node.inputs)
+            .map(([k, v]) => `\n\t${k}: ${get_value(v)}`)
+            .join(',');
+
+            if(paramStr.length > 0)
+                paramStr += "\n";
+
+            return `const ${varName} = new ${node.class_type}({${paramStr}});`
         });
 
     }
     // or is it a legacy/ui workflow?
     else
     {
-        const nodes = (workflow as JSON_Workflow).nodes;
+        const nodes = (workflow as JSON_Workflow).nodes.filter((v)=>!IGNORE_NODES.has(v.type));
 
         // Comfy does the dependency sorting for us. But it won't store them in the correct order for some reason.
         nodes.sort((a, b) => a.order - b.order);
@@ -258,9 +256,12 @@ async function run()
                 });
 
             // Create parameter string.
-            const paramStr = Object.entries(params)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join(', ');
+            let paramStr = Object.entries(params)
+                .map(([k, v]) => `\n\t${k}: ${v}`)
+                .join(',');
+
+            if(paramStr.length > 0)
+                paramStr += "\n";
 
             nodeCreations.push(`const ${varName} = new ${className}({ ${paramStr} });`);
         });
@@ -287,7 +288,10 @@ comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));`
 
     console.log(result);
 
-    fs.writeFileSync(output_path, result);
+    if(!override)
+        write_file_with_confirmation(output_path, result);
+    else
+        fs.writeFileSync(output_path, result);
 }
 
 run().catch(console.error);

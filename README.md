@@ -116,6 +116,4 @@ Use --help for more info.
 ## Scope/Future of the project  
 This is a side project. Pull requests that improve existing features will be merged. Bugs will be fixed, feature requests will likely be ignored.
 
-The only planned feature at the moment is websocket integration in the ComfyInterface (for loading bars in the console).  
-
-Other than that I view the project as feature complete.
+I view the project in its current form as feature complete.

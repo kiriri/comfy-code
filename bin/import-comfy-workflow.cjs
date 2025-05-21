@@ -3620,13 +3620,100 @@ var ComfyInterface = class {
 // scripts/shared.ts
 var import_fs = __toESM(require("fs"), 1);
 var import_path = __toESM(require("path"), 1);
+var import_readline = __toESM(require("readline"), 1);
 function ensure_directory(path3) {
   if (!import_fs.default.existsSync(path3)) {
     import_fs.default.mkdirSync(path3, { recursive: true });
   }
 }
 function clean_key(key) {
-  return key.replace(/[\s\\\/"']/g, "").replace("+", "Plus").replace(/[(:]/g, "_").replace(")", "");
+  key = key.replace(/[\s]/g, "").replace("+", "Plus");
+  if (key.length === 0) {
+    return "_";
+  }
+  const validFirstChar = /^[\p{L}_$]/u;
+  const validRestChars = /^[\p{L}\p{N}_$]$/u;
+  let firstChar = key.charAt(0);
+  let restChars = key.slice(1);
+  if (!validFirstChar.test(firstChar)) {
+    firstChar = "_";
+  }
+  const processedRest = Array.from(restChars).map((char) => validRestChars.test(char) ? char : "_").join("");
+  const candidate = firstChar + processedRest;
+  const reservedKeywords = /* @__PURE__ */ new Set([
+    "abstract",
+    "async",
+    "await",
+    "any",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "as",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "yield",
+    "boolean",
+    "constructor",
+    "declare",
+    "get",
+    "module",
+    "require",
+    "number",
+    "set",
+    "string",
+    "symbol",
+    "type",
+    "from",
+    "of",
+    "is",
+    "namespace",
+    "never",
+    "unknown",
+    "readonly",
+    "object",
+    "undefined",
+    "bigint"
+  ]);
+  return reservedKeywords.has(candidate) ? `_${candidate}` : candidate;
 }
 function get_node_path(import_path3, node) {
   let key = clean_key(node.name);
@@ -3676,6 +3763,25 @@ function sortNodesTopologically(workflow) {
   });
   return sortedNodes;
 }
+function write_file_with_confirmation(output_path, content) {
+  if (import_fs.default.existsSync(output_path)) {
+    const rl = import_readline.default.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(`File "${output_path}" already exists. Overwrite? (y/n) `, (answer) => {
+      rl.close();
+      if (answer.toLowerCase() === "y") {
+        import_fs.default.writeFileSync(output_path, content);
+        console.log(`File "${output_path}" has been overwritten.`);
+      } else
+        console.log(`File "${output_path}" was not overwritten.`);
+    });
+  } else {
+    import_fs.default.writeFileSync(output_path, content);
+    console.log(`File "${output_path}" has been created.`);
+  }
+}
 
 // scripts/import-comfy-workflow.ts
 function ensure_directory2(path3) {
@@ -3684,7 +3790,7 @@ function ensure_directory2(path3) {
   }
 }
 async function run() {
-  program.option("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "../imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).parse(process.argv);
+  program.option("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "../imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).parse(process.argv);
   const options = program.opts();
   console.log(options);
   const PORT = Number.parseInt(options.port);
@@ -3693,14 +3799,16 @@ async function run() {
   const input_path = options.input;
   const imports_path = options.imports;
   const full_workflow = options.full;
+  const override = options.override;
   console.log(`Server URL: ${URL}`);
   console.log(`Port: ${PORT}`);
   console.log(`Output path: ${output_path}`);
   const comfy = new ComfyInterface(`${URL}:${PORT}`);
   const all_nodes = await comfy.fetchNodes();
   const workflow = JSON.parse(import_fs2.default.readFileSync(input_path, { encoding: "ascii" }));
+  const IGNORE_NODES = /* @__PURE__ */ new Set(["Note"]);
   function check_if_nodes_installed(nodes) {
-    const uninstalled_nodes = nodes.filter((node) => !all_nodes[node]);
+    const uninstalled_nodes = nodes.filter((node) => !all_nodes[node]).filter((node) => !IGNORE_NODES.has(node));
     if (uninstalled_nodes.length > 0) {
       console.log("ERROR: ");
       console.log("Some of the nodes in this workflow could not be found in your ComfyUI installation. Please make sure everything is installed and loaded correctly.");
@@ -3722,7 +3830,7 @@ async function run() {
     };
     var get_value = get_value2;
     const sorting = sortNodesTopologically(workflow);
-    const nodes = sorting.map((id) => [id, workflow[id]]);
+    const nodes = sorting.map((id) => [id, workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
     if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
       return;
     let placeholders = /* @__PURE__ */ new Map();
@@ -3734,11 +3842,14 @@ async function run() {
         type: all_nodes[baseName]
       });
       imports.add(baseName);
-      return `const ${varName} = new ${node.class_type}({
-${Object.entries(node.inputs).map(([k2, v]) => k2 + ":" + get_value2(v))}});`;
+      let paramStr = Object.entries(node.inputs).map(([k2, v]) => `
+	${k2}: ${get_value2(v)}`).join(",");
+      if (paramStr.length > 0)
+        paramStr += "\n";
+      return `const ${varName} = new ${node.class_type}({${paramStr}});`;
     });
   } else {
-    const nodes = workflow.nodes;
+    const nodes = workflow.nodes.filter((v) => !IGNORE_NODES.has(v.type));
     nodes.sort((a, b) => a.order - b.order);
     if (!check_if_nodes_installed(nodes.map((node) => node.type)))
       return;
@@ -3800,7 +3911,10 @@ ${Object.entries(node.inputs).map(([k2, v]) => k2 + ":" + get_value2(v))}});`;
             skip_next = true;
           }
         });
-      const paramStr = Object.entries(params).map(([k, v]) => `${k}: ${v}`).join(", ");
+      let paramStr = Object.entries(params).map(([k, v]) => `
+	${k}: ${v}`).join(",");
+      if (paramStr.length > 0)
+        paramStr += "\n";
       nodeCreations.push(`const ${varName} = new ${className}({ ${paramStr} });`);
     });
   }
@@ -3818,6 +3932,9 @@ comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));` : `${i
 
 ${nodeCreations.join("\n")}`;
   console.log(result);
-  import_fs2.default.writeFileSync(output_path, result);
+  if (!override)
+    write_file_with_confirmation(output_path, result);
+  else
+    import_fs2.default.writeFileSync(output_path, result);
 }
 run().catch(console.error);
