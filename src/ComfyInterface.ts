@@ -235,7 +235,7 @@ export class ComfyInterface
      */
     generateJsonPrompt(nodes: ComfyNode[]): JSON_ComfyGraph
     {
-        return Object.fromEntries(nodes.map(x => [x.id, x.to_json()]))
+        return Object.fromEntries(nodes.map(x => [x.id, x.toJson()]))
     }
 
     /**

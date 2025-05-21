@@ -57,7 +57,7 @@ export class ComfyInput<Type extends string | number | boolean>
             if(fallback !== undefined)
             {
                 // console.log("Setting initial value to ", label, fallback)
-                this.set_value(fallback);
+                this.setValue(fallback);
             }
 
             // this.type = type;
@@ -71,7 +71,7 @@ export class ComfyInput<Type extends string | number | boolean>
         }
         this.target = undefined as any;
 
-        this.set_value(this.default);
+        this.setValue(this.default);
     }
 
     connect(target: ComfyOutput<Type>)
@@ -89,7 +89,7 @@ export class ComfyInput<Type extends string | number | boolean>
         ];
     }
 
-    set_value(value: any)
+    setValue(value: any)
     {
         if(this.target)
             this.disconnect();
@@ -105,10 +105,10 @@ let active_group : ComfyNode[] = [];
 
 export abstract class ComfyNode
 {
-    static id_counter = 0;
-    id = ComfyNode.id_counter++;
+    static idCounter = 0;
+    id = ComfyNode.idCounter++;
     // The type of the node as found in 'GET /object_info' by key
-    class_type!: string;
+    classType!: string;
     // All incoming connections
     ["#inputs"]: {
         [input_name: string|number]: JSON_ValueRef;
@@ -135,7 +135,7 @@ export abstract class ComfyNode
                     this.inputs![k]!.connect(v);
                 }
                 else
-                    this.inputs![k]!.set_value(v);
+                    this.inputs![k]!.setValue(v);
             }
         }
 
@@ -143,21 +143,21 @@ export abstract class ComfyNode
     }
 
 
-    to_json() : JSON_ComfyNode
+    toJson() : JSON_ComfyNode
     {
         return {
-            class_type: this["class_type"],
+            class_type: this["classType"],
             inputs: this["#inputs"]
         }
     }
 
-    static new_active_group()
+    static newActiveGroup()
     {
         active_group = [];
         return active_group;
     }
 
-    static get_active_group() : ComfyNode[]
+    static getActiveGroup() : ComfyNode[]
     {
         return active_group;
     }

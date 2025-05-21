@@ -158,7 +158,7 @@ export function get_node_path(import_path: string, node: JSON_ComfyNodeTypes[any
   return full_path;
 }
 
-export function sortNodesTopologically(workflow: Record<string, JSON_ComfyNode>): string[]
+export function sort_nodes_topologically(workflow: Record<string, JSON_ComfyNode>): string[]
 {
   const nodeIds = Object.keys(workflow);
   const visited = new Set<string>();
@@ -261,7 +261,6 @@ export async function try_all<T>(fns:(()=>T|Promise<T>)[]) : Promise<T|null>
 {
   for(let fn of fns)
   {
-    console.log(1);
     try
     {
       let res = fn();

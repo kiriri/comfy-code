@@ -4,18 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { program } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
-import { clean_key, get_node_path, sortNodesTopologically, try_all, write_file_with_confirmation } from './shared.js';
+import { clean_key, ensure_directory, get_node_path, sort_nodes_topologically, try_all, write_file_with_confirmation } from './shared.js';
 import type { JSON_ComfyNodeTypes, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
 import ExifReader from 'exifreader';
-
-
-function ensure_directory(path: string)
-{
-    if (!fs.existsSync(path))
-    {
-        fs.mkdirSync(path, { recursive: true });
-    }
-}
 
 
 async function run()
@@ -57,10 +48,9 @@ async function run()
     // Parse the workflow file
     ///
 
-    // EXIF.
-
     let workflow: JSON_Workflow | JSON_Workflow_API;
 
+    // json workflow files MUST end in a .json extension.
     if(input_path.endsWith(".json"))
         workflow = JSON.parse(fs.readFileSync(input_path, { encoding: "ascii" }));
     // Otherwise it's presumably an image
@@ -84,7 +74,7 @@ async function run()
             console.log(tags);
             
             console.log("Fatal Error: Failed to find workflow data in the image's metadata.");
-            
+
             return;
         }
     }
@@ -113,14 +103,14 @@ async function run()
     // All Node names this script will require.
     const imports = new Set<string>();
     // Individual node creation lines.
-    let nodeCreations: string[] = [];
+    let node_creations: string[] = [];
 
 
     // Is it an api workflow?
     if (!('version' in workflow))
     {
         // Sort the nodes such that no node is created before all the nodes it depends on were created.
-        const sorting = sortNodesTopologically(workflow);
+        const sorting = sort_nodes_topologically(workflow);
 
         const nodes = sorting.map(id=>[id,(workflow as JSON_Workflow_API)[id]] as const).filter(([k,v])=>!IGNORE_NODES.has(v.class_type));
 
@@ -153,27 +143,27 @@ async function run()
         }
         
 
-        nodeCreations = nodes.map(([k, node]) =>
+        node_creations = nodes.map(([k, node]) =>
         {
             // Generate variable name
-            const baseName = clean_key(node.class_type);
-            let varName = `${baseName}${k}`;
+            const base_name = clean_key(node.class_type);
+            let var_name = `${base_name}${k}`;
 
             placeholders.set(k, {
-                name: varName,
-                type: all_nodes[baseName]
+                name: var_name,
+                type: all_nodes[base_name]
             });
 
-            imports.add(baseName);
+            imports.add(base_name);
 
-            let paramStr = Object.entries(node.inputs)
+            let param_str = Object.entries(node.inputs)
             .map(([k, v]) => `\n\t${k}: ${get_value(v)}`)
             .join(',');
 
-            if(paramStr.length > 0)
-                paramStr += "\n";
+            if(param_str.length > 0)
+                param_str += "\n";
 
-            return `const ${varName} = new ${node.class_type}({${paramStr}});`
+            return `const ${var_name} = new ${node.class_type}({${param_str}});`
         });
 
     }
@@ -191,9 +181,9 @@ async function run()
         ensure_directory(path.dirname(output_path));
 
         // Phase 1: Create link mapping and variable names
-        const linkMap = new Map<number, { nodeId: number; outputName: string }>();
-        const nodeVars = new Map<number, string>();
-        const usedNames = new Set<string>();
+        const link_map = new Map<number, { node_id: number; output_name: string }>();
+        const node_vars = new Map<number, string>();
+        const used_names = new Set<string>();
 
         // Create link map and variable names.
         // (The ids are not in order)
@@ -204,32 +194,32 @@ async function run()
             {
                 output.links?.forEach(linkId =>
                 {
-                    linkMap.set(linkId, { nodeId: node.id, outputName: output.name });
+                    link_map.set(linkId, { node_id: node.id, output_name: output.name });
                 });
             });
 
             // Generate variable name
-            const baseName = clean_key(node.type);
-            let varName = `${baseName}${node.id}`;
+            const base_name = clean_key(node.type);
+            let var_name = `${base_name}${node.id}`;
             let counter = 1;
-            while (usedNames.has(varName))
+            while (used_names.has(var_name))
             {
-                varName = `${baseName}${node.id}_${counter++}`;
+                var_name = `${base_name}${node.id}_${counter++}`;
             }
-            usedNames.add(varName);
-            nodeVars.set(node.id, varName);
+            used_names.add(var_name);
+            node_vars.set(node.id, var_name);
         });
 
         // Generate code for each node
         nodes.forEach(node =>
         {
-            const className = node.type;
-            const varName = nodeVars.get(node.id)!;
-            imports.add(className);
+            const class_name = node.type;
+            const var_name = node_vars.get(node.id)!;
+            imports.add(class_name);
 
             const params: Record<string, string> = {};
 
-            const nodeType = all_nodes[className];
+            const nodeType = all_nodes[class_name];
 
             // All inputs the base Node Class contains.
             let all_inputs = [...(nodeType.input_order?.required ?? {}), ...(nodeType.input_order?.optional ?? [])];
@@ -244,20 +234,20 @@ async function run()
             {
                 if (!possible_inputs.has(input.name))
                 {
-                    console.error(`Failed Sanity Check! Node ${className} does not have an input named ${input.name}. Make sure your imports are up to date!`);
+                    console.error(`Failed Sanity Check! Node ${class_name} does not have an input named ${input.name}. Make sure your imports are up to date!`);
                 }
                 possible_inputs.delete(input.name);
                 console.log("Checking ", input)
                 if ((input.link !== undefined) && (input.link !== null))
                 {
                     // Handle linked input.
-                    const source = linkMap.get(input.link);
+                    const source = link_map.get(input.link);
                     if (!source){
                         console.log("No source");
                         return;
                     }
-                    const sourceVar = nodeVars.get(source.nodeId)!;
-                    params[input.name] = `${sourceVar}.outputs.${source.outputName}`;
+                    const sourceVar = node_vars.get(source.node_id)!;
+                    params[input.name] = `${sourceVar}.outputs.${source.output_name}`;
                 }
             });
 
@@ -294,28 +284,28 @@ async function run()
             if(paramStr.length > 0)
                 paramStr += "\n";
 
-            nodeCreations.push(`const ${varName} = new ${className}({ ${paramStr} });`);
+            node_creations.push(`const ${var_name} = new ${class_name}({ ${paramStr} });`);
         });
     }
 
     // Generate imports
-    const importStatements = Array.from(imports)
+    const import_statements = Array.from(imports)
         .map(cls => `import { ${cls} } from "${get_node_path(imports_path, all_nodes[cls])}";`)
         .join('\n');
 
 
     const result = full_workflow ?
-        `${importStatements}
+        `${import_statements}
 import { ComfyInterface, ComfyNode } from "comfy-code";
 
 const comfy = new ComfyInterface('${URL}:${PORT}');
 
-const active_group = ComfyNode.new_active_group();
+const activeGroup = ComfyNode.newActiveGroup();
 
-${nodeCreations.join('\n')}
+${node_creations.join('\n')}
 
-comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));`
-        : `${importStatements}\n\n${nodeCreations.join('\n')}`;
+comfy.executePrompt(activeGroup, "print").then(comfy.quit.bind(comfy));`
+        : `${import_statements}\n\n${node_creations.join('\n')}`;
 
     console.log(result);
 

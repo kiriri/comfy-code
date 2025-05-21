@@ -166,7 +166,7 @@ import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';
             
 export class ${clean_key} extends ComfyNode
 {
-    class_type = '${key.replace("\'", "\\\'")}';
+    classType = '${key.replace("\'", "\\\'")}';
 
     _outputs = [
     ${outputs.map((x, i) =>

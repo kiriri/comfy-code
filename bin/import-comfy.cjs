@@ -3501,7 +3501,7 @@ var ComfyInterface = class {
    * @returns
    */
   generateJsonPrompt(nodes) {
-    return Object.fromEntries(nodes.map((x) => [x.id, x.to_json()]));
+    return Object.fromEntries(nodes.map((x) => [x.id, x.toJson()]));
   }
   /**
    * Execute a prompt
@@ -3834,7 +3834,7 @@ import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';
             
 export class ${clean_key2} extends ComfyNode
 {
-    class_type = '${key.replace("'", "\\'")}';
+    classType = '${key.replace("'", "\\'")}';
 
     _outputs = [
     ${outputs.map((x, i) => {

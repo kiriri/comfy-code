@@ -12157,7 +12157,7 @@ var ComfyInterface = class {
    * @returns
    */
   generateJsonPrompt(nodes) {
-    return Object.fromEntries(nodes.map((x) => [x.id, x.to_json()]));
+    return Object.fromEntries(nodes.map((x) => [x.id, x.toJson()]));
   }
   /**
    * Execute a prompt
@@ -12384,7 +12384,7 @@ function get_node_path(import_path3, node) {
   full_path = import_path.default.join(full_path, key + ".ts");
   return full_path;
 }
-function sortNodesTopologically(workflow) {
+function sort_nodes_topologically(workflow) {
   const nodeIds = Object.keys(workflow);
   const visited = /* @__PURE__ */ new Set();
   const tempVisited = /* @__PURE__ */ new Set();
@@ -12443,7 +12443,6 @@ function write_file_with_confirmation(output_path, content, fallback = false) {
 }
 async function try_all(fns) {
   for (let fn of fns) {
-    console.log(1);
     try {
       let res = fn();
       if (res instanceof Promise) {
@@ -12463,11 +12462,6 @@ async function try_all(fns) {
 
 // scripts/import-comfy-workflow.ts
 var import_exifreader = __toESM(require_exif_reader(), 1);
-function ensure_directory2(path3) {
-  if (!import_fs2.default.existsSync(path3)) {
-    import_fs2.default.mkdirSync(path3, { recursive: true });
-  }
-}
 async function run() {
   program.option("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "../imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).parse(process.argv);
   const options = program.opts();
@@ -12494,8 +12488,8 @@ async function run() {
     const tags = await import_exifreader.default.load(input_path);
     workflow = await try_all([
       () => JSON.parse(tags.prompt?.value),
-      () => JSON.parse(tags.description?.value),
-      // ()=>JSON.parse(tags.Make?.value?.[0].replace(/^workflow:/,"")),
+      // ()=>JSON.parse(tags.description?.value),
+      () => JSON.parse(tags.Make?.value?.[0].replace(/^workflow:/, "")),
       () => JSON.parse(tags.Model?.value?.[0].replace(/^prompt:/, ""))
     ]);
     if (workflow === null) {
@@ -12516,7 +12510,7 @@ async function run() {
     return true;
   }
   const imports = /* @__PURE__ */ new Set();
-  let nodeCreations = [];
+  let node_creations = [];
   if (!("version" in workflow)) {
     let get_value2 = function(v) {
       if (!Array.isArray(v))
@@ -12527,71 +12521,71 @@ async function run() {
       return `${target_name}.outputs.${socket_name}`;
     };
     var get_value = get_value2;
-    const sorting = sortNodesTopologically(workflow);
+    const sorting = sort_nodes_topologically(workflow);
     const nodes = sorting.map((id) => [id, workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
     if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
       return;
     let placeholders = /* @__PURE__ */ new Map();
-    nodeCreations = nodes.map(([k, node]) => {
-      const baseName = clean_key(node.class_type);
-      let varName = `${baseName}${k}`;
+    node_creations = nodes.map(([k, node]) => {
+      const base_name = clean_key(node.class_type);
+      let var_name = `${base_name}${k}`;
       placeholders.set(k, {
-        name: varName,
-        type: all_nodes[baseName]
+        name: var_name,
+        type: all_nodes[base_name]
       });
-      imports.add(baseName);
-      let paramStr = Object.entries(node.inputs).map(([k2, v]) => `
+      imports.add(base_name);
+      let param_str = Object.entries(node.inputs).map(([k2, v]) => `
 	${k2}: ${get_value2(v)}`).join(",");
-      if (paramStr.length > 0)
-        paramStr += "\n";
-      return `const ${varName} = new ${node.class_type}({${paramStr}});`;
+      if (param_str.length > 0)
+        param_str += "\n";
+      return `const ${var_name} = new ${node.class_type}({${param_str}});`;
     });
   } else {
     const nodes = workflow.nodes.filter((v) => !IGNORE_NODES.has(v.type));
     nodes.sort((a, b) => a.order - b.order);
     if (!check_if_nodes_installed(nodes.map((node) => node.type)))
       return;
-    ensure_directory2(import_path2.default.dirname(output_path));
-    const linkMap = /* @__PURE__ */ new Map();
-    const nodeVars = /* @__PURE__ */ new Map();
-    const usedNames = /* @__PURE__ */ new Set();
+    ensure_directory(import_path2.default.dirname(output_path));
+    const link_map = /* @__PURE__ */ new Map();
+    const node_vars = /* @__PURE__ */ new Map();
+    const used_names = /* @__PURE__ */ new Set();
     nodes.forEach((node) => {
       node.outputs.forEach((output) => {
         output.links?.forEach((linkId) => {
-          linkMap.set(linkId, { nodeId: node.id, outputName: output.name });
+          link_map.set(linkId, { node_id: node.id, output_name: output.name });
         });
       });
-      const baseName = clean_key(node.type);
-      let varName = `${baseName}${node.id}`;
+      const base_name = clean_key(node.type);
+      let var_name = `${base_name}${node.id}`;
       let counter = 1;
-      while (usedNames.has(varName)) {
-        varName = `${baseName}${node.id}_${counter++}`;
+      while (used_names.has(var_name)) {
+        var_name = `${base_name}${node.id}_${counter++}`;
       }
-      usedNames.add(varName);
-      nodeVars.set(node.id, varName);
+      used_names.add(var_name);
+      node_vars.set(node.id, var_name);
     });
     nodes.forEach((node) => {
-      const className = node.type;
-      const varName = nodeVars.get(node.id);
-      imports.add(className);
+      const class_name = node.type;
+      const var_name = node_vars.get(node.id);
+      imports.add(class_name);
       const params = {};
-      const nodeType = all_nodes[className];
+      const nodeType = all_nodes[class_name];
       let all_inputs = [...nodeType.input_order?.required ?? {}, ...nodeType.input_order?.optional ?? []];
       const possible_inputs = new Set(all_inputs);
       node.inputs.forEach((input) => {
         if (!possible_inputs.has(input.name)) {
-          console.error(`Failed Sanity Check! Node ${className} does not have an input named ${input.name}. Make sure your imports are up to date!`);
+          console.error(`Failed Sanity Check! Node ${class_name} does not have an input named ${input.name}. Make sure your imports are up to date!`);
         }
         possible_inputs.delete(input.name);
         console.log("Checking ", input);
         if (input.link !== void 0 && input.link !== null) {
-          const source = linkMap.get(input.link);
+          const source = link_map.get(input.link);
           if (!source) {
             console.log("No source");
             return;
           }
-          const sourceVar = nodeVars.get(source.nodeId);
-          params[input.name] = `${sourceVar}.outputs.${source.outputName}`;
+          const sourceVar = node_vars.get(source.node_id);
+          params[input.name] = `${sourceVar}.outputs.${source.output_name}`;
         }
       });
       const remaining_inputs = all_inputs.filter((k) => possible_inputs.has(k));
@@ -12613,22 +12607,22 @@ async function run() {
 	${k}: ${v}`).join(",");
       if (paramStr.length > 0)
         paramStr += "\n";
-      nodeCreations.push(`const ${varName} = new ${className}({ ${paramStr} });`);
+      node_creations.push(`const ${var_name} = new ${class_name}({ ${paramStr} });`);
     });
   }
-  const importStatements = Array.from(imports).map((cls) => `import { ${cls} } from "${get_node_path(imports_path, all_nodes[cls])}";`).join("\n");
-  const result = full_workflow ? `${importStatements}
+  const import_statements = Array.from(imports).map((cls) => `import { ${cls} } from "${get_node_path(imports_path, all_nodes[cls])}";`).join("\n");
+  const result = full_workflow ? `${import_statements}
 import { ComfyInterface, ComfyNode } from "comfy-code";
 
 const comfy = new ComfyInterface('${URL}:${PORT}');
 
-const active_group = ComfyNode.new_active_group();
+const activeGroup = ComfyNode.newActiveGroup();
 
-${nodeCreations.join("\n")}
+${node_creations.join("\n")}
 
-comfy.executePrompt(active_group, "print").then(comfy.quit.bind(comfy));` : `${importStatements}
+comfy.executePrompt(activeGroup, "print").then(comfy.quit.bind(comfy));` : `${import_statements}
 
-${nodeCreations.join("\n")}`;
+${node_creations.join("\n")}`;
   console.log(result);
   if (!override)
     write_file_with_confirmation(output_path, result, true);
