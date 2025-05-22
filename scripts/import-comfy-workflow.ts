@@ -1,33 +1,28 @@
-#!/usr/bin/env -S node --loader ts-node/esm --no-warnings
+#!/usr/bin/env -S node --no-warnings
 
 import fs from 'fs';
 import path from 'path';
-import { program } from 'commander';
+import { Command } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
-import { clean_key, ensure_directory, get_node_path, sort_nodes_topologically, try_all, write_file_with_confirmation } from './shared.js';
+import { clean_key, ensure_directory, get_node_path, sort_nodes_topologically, success, try_all, unimportant, write_file_with_confirmation } from './shared';
 import type { JSON_ComfyNodeTypes, JSON_ValueRef, JSON_Workflow, JSON_Workflow_API } from '../dist/JsonTypes';
 import ExifReader from 'exifreader';
+import { error } from 'console';
 
+export const import_workflow_command = new Command('workflow')
+    .description('Extract a prompt graph from a json file or an (animated) image and then save the graph in the form of a comfy-code typescript script.\nUseful for quick prototyping.\n')
+    .requiredOption('-i, --input <path>', 'Workflow file path')
+    .option('-p, --port <number>', 'Port number', '8188')
+    .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
+    .option('-o, --output <path>', 'Output file path', './workflows/workflow.ts')
+    .option('-m, --imports <path>', 'Import path (Relative to the workflow file)', './imports/')
+    .option('-f, --full', 'Full template, such that running the resulting file runs the workflow.', false)
+    .option('-y, --override', 'Override any existing file without asking.', false)
+    .action(run_import_workflow);
 
-async function run()
+export async function run_import_workflow(options)
 {
-    ///
-    // Initialize command line args
-    ///
-
-    program
-        .option('-i, --input <path>', 'Workflow file path')
-        .option('-p, --port <number>', 'Port number', '8188')
-        .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
-        .option('-o, --output <path>', 'Output file path', './workflows/workflow.ts')
-        .option('-m, --imports <path>', 'Import path (Relative to the workflow file)', '../imports/')
-        .option('-f, --full', 'Full template, such that running the resulting file runs the workflow.', false)
-        .option('-y, --override', 'Override any existing file without asking.', false)
-        .parse(process.argv);
-
-    const options = program.opts();
-
-    console.log(options);
+    console.log(unimportant(JSON.stringify(options,undefined,2)));
 
     const PORT: number = Number.parseInt(options.port);
     const URL: string = options.url;
@@ -37,9 +32,14 @@ async function run()
     const full_workflow: boolean = options.full;
     const override: boolean = options.override;
 
+    const relative_import_path = path.relative(path.dirname(output_path),imports_path);
+
+    console.log();
     console.log(`Server URL: ${URL}`);
     console.log(`Port: ${PORT}`);
     console.log(`Output path: ${output_path}`);
+    console.log(`Relative input path: ${relative_import_path}`);
+    console.log();
 
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
     const all_nodes = await comfy.getNodeTypes();
@@ -51,35 +51,34 @@ async function run()
     let workflow: JSON_Workflow | JSON_Workflow_API;
 
     // json workflow files MUST end in a .json extension.
-    if(input_path.endsWith(".json"))
+    if (input_path.endsWith(".json"))
         workflow = JSON.parse(fs.readFileSync(input_path, { encoding: "ascii" }));
     // Otherwise it's presumably an image
     else
     {
-        if(![".jpg",".jpeg",".png",".tiff",".webp",".gif",".avif",".heic",".heif"].includes(path.extname(input_path).toLowerCase()))
+        if (![".jpg", ".jpeg", ".png", ".tiff", ".webp", ".gif", ".avif", ".heic", ".heif"].includes(path.extname(input_path).toLowerCase()))
         {
             console.warn("Unsupported input file format. Treating it like an exif image.")
         }
         const tags = await ExifReader.load(input_path);
 
         workflow = await try_all([
-            ()=>JSON.parse(tags.prompt?.value),
+            () => JSON.parse(tags.prompt?.value),
             // ()=>JSON.parse(tags.description?.value),
-            ()=>JSON.parse(tags.Make?.value?.[0].replace(/^workflow:/,"")),
-            ()=>JSON.parse(tags.Model?.value?.[0].replace(/^prompt:/,"")),
+            () => JSON.parse(tags.Make?.value?.[0].replace(/^workflow:/, "")),
+            () => JSON.parse(tags.Model?.value?.[0].replace(/^prompt:/, "")),
         ]);
 
-        if(workflow === null)
+        if (workflow === null)
         {
             console.log(tags);
-            
-            console.log("Fatal Error: Failed to find workflow data in the image's metadata.");
+            console.log(error("Fatal Error: Failed to find workflow data in the image's metadata."));
 
             return;
         }
     }
 
-    // These nodes do not contribute to the graph at all (visual / documentation)
+    // These nodes do not contribute to the graph at all (visual / documentation).
     const IGNORE_NODES = new Set(["Note"]);
 
     function check_if_nodes_installed(nodes: string[])
@@ -87,12 +86,11 @@ async function run()
         // Check if all nodes are installed
         const uninstalled_nodes = nodes
             .filter(node => !all_nodes[node])
-            .filter(node=> !IGNORE_NODES.has(node));
+            .filter(node => !IGNORE_NODES.has(node));
 
         if (uninstalled_nodes.length > 0)
         {
-            console.log("ERROR: ");
-            console.log("Some of the nodes in this workflow could not be found in your ComfyUI installation. Please make sure everything is installed and loaded correctly.");
+            console.log(error("Fatal Error: Some of the nodes in this workflow could not be found in your ComfyUI installation. Please make sure everything is installed and loaded correctly."));
             console.log([...new Set(uninstalled_nodes)].join(", "));
             return false;
         }
@@ -112,7 +110,7 @@ async function run()
         // Sort the nodes such that no node is created before all the nodes it depends on were created.
         const sorting = sort_nodes_topologically(workflow);
 
-        const nodes = sorting.map(id=>[id,(workflow as JSON_Workflow_API)[id]] as const).filter(([k,v])=>!IGNORE_NODES.has(v.class_type));
+        const nodes = sorting.map(id => [id, (workflow as JSON_Workflow_API)[id]] as const).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
 
 
         if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
@@ -129,9 +127,9 @@ async function run()
 
         // Turn a socket value into javascript.
         // This can be a primitive value or a reference to an output socket.
-        function get_value(v:JSON_ValueRef)
+        function get_value(v: JSON_ValueRef)
         {
-            if(!Array.isArray(v))  
+            if (!Array.isArray(v))
                 return JSON.stringify(v)
 
             let target = placeholders.get(v[0]);
@@ -141,7 +139,7 @@ async function run()
 
             return `${target_name}.outputs.${socket_name}`
         }
-        
+
 
         node_creations = nodes.map(([k, node]) =>
         {
@@ -157,10 +155,10 @@ async function run()
             imports.add(base_name);
 
             let param_str = Object.entries(node.inputs)
-            .map(([k, v]) => `\n\t${k}: ${get_value(v)}`)
-            .join(',');
+                .map(([k, v]) => `\n\t${k}: ${get_value(v)}`)
+                .join(',');
 
-            if(param_str.length > 0)
+            if (param_str.length > 0)
                 param_str += "\n";
 
             return `const ${var_name} = new ${node.class_type}({${param_str}});`
@@ -170,7 +168,7 @@ async function run()
     // or is it a legacy/ui workflow?
     else
     {
-        const nodes = (workflow as JSON_Workflow).nodes.filter((v)=>!IGNORE_NODES.has(v.type));
+        const nodes = (workflow as JSON_Workflow).nodes.filter((v) => !IGNORE_NODES.has(v.type));
 
         // Comfy does the dependency sorting for us. But it won't store them in the correct order for some reason.
         nodes.sort((a, b) => a.order - b.order);
@@ -210,7 +208,7 @@ async function run()
             node_vars.set(node.id, var_name);
         });
 
-        // Generate code for each node
+        // Generate code for each node.
         nodes.forEach(node =>
         {
             const class_name = node.type;
@@ -234,16 +232,15 @@ async function run()
             {
                 if (!possible_inputs.has(input.name))
                 {
-                    console.error(`Failed Sanity Check! Node ${class_name} does not have an input named ${input.name}. Make sure your imports are up to date!`);
+                    console.error(error(`Failed Sanity Check! Node ${class_name} does not have an input named ${input.name}. Make sure your imports are up to date!`));
                 }
                 possible_inputs.delete(input.name);
-                console.log("Checking ", input)
                 if ((input.link !== undefined) && (input.link !== null))
                 {
                     // Handle linked input.
                     const source = link_map.get(input.link);
-                    if (!source){
-                        console.log("No source");
+                    if (!source)
+                    {
                         return;
                     }
                     const sourceVar = node_vars.get(source.node_id)!;
@@ -281,7 +278,7 @@ async function run()
                 .map(([k, v]) => `\n\t${k}: ${v}`)
                 .join(',');
 
-            if(paramStr.length > 0)
+            if (paramStr.length > 0)
                 paramStr += "\n";
 
             node_creations.push(`const ${var_name} = new ${class_name}({ ${paramStr} });`);
@@ -290,7 +287,7 @@ async function run()
 
     // Generate imports
     const import_statements = Array.from(imports)
-        .map(cls => `import { ${cls} } from "${get_node_path(imports_path, all_nodes[cls])}";`)
+        .map(cls => `import { ${cls} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0,-3)}";`)
         .join('\n');
 
 
@@ -307,15 +304,24 @@ ${node_creations.join('\n')}
 comfy.executePrompt(activeGroup, "print").then(comfy.quit.bind(comfy));`
         : `${import_statements}\n\n${node_creations.join('\n')}`;
 
+    console.log("--- RESULT ---");
+    console.log();
     console.log(result);
+    console.log();
 
-    if(!override)
+
+    if (!override)
+    {
         write_file_with_confirmation(output_path, result, true);
+    }
     else
     {
         fs.writeFileSync(output_path, result);
-        console.log(`File "${output_path}" has been created.`);
+        console.log(success(`File "${output_path}" has been created.`));
     }
 }
 
-run().catch(console.error);
+// if (require.main === module)
+// {
+//     run_import_workflow(import_workflow_command.parse().options).catch(console.error);
+// }

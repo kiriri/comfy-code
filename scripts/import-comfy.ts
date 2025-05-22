@@ -1,22 +1,22 @@
-#!/usr/bin/env -S node --loader ts-node/esm --no-warnings
+#!/usr/bin/env -S node --no-warnings
 
 import fs from 'fs';
 import path from 'path';
-import { program } from 'commander';
+import { Command } from 'commander';
 import { ComfyInterface } from '../dist/ComfyInterface.js';
-import { clean_key as get_clean_key, ensure_directory, get_node_path } from './shared.js';
+import { clean_key as get_clean_key, ensure_directory, get_node_path, unimportant, success } from './shared';
+import { error } from 'console';
 
-async function run()
+export const import_nodes_command = new Command('nodes')
+    .description('Import and transform all nodes from the API to a local directory as typescript classes.\nYou need those to write any code using comfy-code.\nMake sure to rerun this command every time your ComfyUI changes, for example when you install or update nodes.\nThis command will not delete files in the target directory, but it will replace them if necessary.\nIf you find yourself with deprecated classes for nodes you have since uninstalled, you can delete the imports folder and run this command again for a fresh import.')
+    .option('-p, --port <number>', 'Port number', '8188')
+    .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
+    .option('-o, --output <path>', 'Output directory', './imports/')
+    .action(run_import_nodes);
+
+export async function run_import_nodes(options)
 {
-    program
-        .option('-p, --port <number>', 'Port number', '8188')
-        .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
-        .option('-o, --output <path>', 'Output directory', './imports/')
-        .parse(process.argv);
-
-    const options = program.opts();
-
-    console.log(options);
+    console.log(unimportant(JSON.stringify(options,undefined,2)));
 
     const PORT = options.port;
     const URL = options.url;
@@ -160,6 +160,9 @@ async function run()
                 return type;
             }
 
+            const outputs_str = outputs.length > 0 ? `Object.fromEntries(this._outputs.map((x, i) => [x.label, x])) as {
+        ${outputs.map(x => x.label + ": ComfyOutput<" + output_to_type(x) + ">").join(",\n")}
+    }` : `{}`;
 
             fs.writeFileSync(full_path, `
 import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';            
@@ -177,9 +180,7 @@ export class ${clean_key} extends ComfyNode
             }).join(',\n')}
     ] as const;
 
-    outputs = Object.fromEntries(this._outputs.map((x, i) => [x.label, x])) as {
-        ${outputs.map(x => x.label + ": ComfyOutput<" + output_to_type(x) + ">").join(",\n")}
-    };
+    outputs = ${outputs_str};
 
     _inputs = [
     ${inputs.map((x, i) =>
@@ -204,11 +205,15 @@ export class ${clean_key} extends ComfyNode
         {
             console.log(key);
             console.log(v.input.required);
+            console.log(error("Uncaught error, see above."))
             throw e;
         }
     }
 
-
+    console.log(success(`Created all ${Object.keys(res).length} classes.`))
 }
 
-run()
+// if(require.main === module)
+// {
+//     run_import_nodes(import_nodes_command.parse().options)
+// }

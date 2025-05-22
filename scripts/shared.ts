@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from "path";
 import type { JSON_ComfyNode, JSON_ComfyNodeTypes } from '../dist/JsonTypes';
 import ReadLine from 'readline';
+import chalk from 'chalk';
 /**
  * Create a directory if it doesn't exist already.
  * @param path 
@@ -134,6 +135,12 @@ export function clean_key(key: string): string
   return reservedKeywords.has(candidate) ? `_${candidate}` : candidate;
 }
 
+/**
+ * Get the file path of a node's generated typescript file.
+ * @param import_path 
+ * @param node 
+ * @returns 
+ */
 export function get_node_path(import_path: string, node: JSON_ComfyNodeTypes[any])
 {
   let key = clean_key(node.name);
@@ -142,15 +149,15 @@ export function get_node_path(import_path: string, node: JSON_ComfyNodeTypes[any
 
   if (node.category)
   {
-    let path = node.category.split('/');
+    let path_segments = node.category.split('/');
 
-    for (let i = 0; i < path.length; i++)
+    for (let i = 0; i < path_segments.length; i++)
     {
-      let partial_path = import_path + path.slice(0, i + 1).join('/');
+      let partial_path = path.join(import_path, ...path_segments.slice(0, i + 1));
       ensure_directory(partial_path);
     }
 
-    full_path = import_path + path.join('/');
+    full_path = path.join(import_path,...path_segments);
   }
 
   full_path = path.join(full_path, key + '.ts');
@@ -229,7 +236,7 @@ export function write_file_with_confirmation(output_path: string, content: strin
       output: process.stdout
     });
 
-    rl.question(`File "${output_path}" already exists. Overwrite? (${fallback ? 'Y' : 'y'}/${!fallback ? 'N' : 'n'}) `, (answer) =>
+    rl.question(warning(`File "${output_path}" already exists. Overwrite? (${fallback ? 'Y' : 'y'}/${!fallback ? 'N' : 'n'})`), (answer) =>
     {
       rl.close();
       if(answer === "")
@@ -239,17 +246,17 @@ export function write_file_with_confirmation(output_path: string, content: strin
       if (answer.toLowerCase() === 'y')
       {
         fs.writeFileSync(output_path, content);
-        console.log(`File "${output_path}" has been overwritten.`);
+        console.log(success(`File "${output_path}" has been overwritten.`));
       } 
       else
-        console.log(`File "${output_path}" was not overwritten.`);
+        console.log(error(`File "${output_path}" was not overwritten.`));
       
     });
   } 
   else
   {
     fs.writeFileSync(output_path, content);
-    console.log(`File "${output_path}" has been created.`);
+    console.log(success(`File "${output_path}" has been created.`));
   }
 }
 
@@ -286,3 +293,8 @@ export async function try_all<T>(fns:(()=>T|Promise<T>)[]) : Promise<T|null>
 
   return null;
 }
+
+export const unimportant = chalk.hex("#888");
+export const error = chalk.hex("#f00").bgWhite;
+export const warning = chalk.hex("#fa0");
+export const success = chalk.hex("#0b0").bgBlack;

@@ -1,5 +1,4 @@
-#!/usr/bin/env -S node --loader ts-node/esm --no-warnings
-"use strict";
+#!/usr/bin/env -S node --no-warnings
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -1144,7 +1143,7 @@ var require_command = __commonJS({
     var EventEmitter2 = require("node:events").EventEmitter;
     var childProcess = require("node:child_process");
     var path3 = require("node:path");
-    var fs3 = require("node:fs");
+    var fs4 = require("node:fs");
     var process3 = require("node:process");
     var { Argument: Argument2, humanReadableArgName } = require_argument();
     var { CommanderError: CommanderError2 } = require_error();
@@ -2125,7 +2124,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {string} subcommandName
        */
       _checkForMissingExecutable(executableFile, executableDir, subcommandName) {
-        if (fs3.existsSync(executableFile)) return;
+        if (fs4.existsSync(executableFile)) return;
         const executableDirMessage = executableDir ? `searched for local subcommand relative to directory '${executableDir}'` : "no directory for search for local subcommand, use .executableDir() to supply a custom directory";
         const executableMissing = `'${executableFile}' does not exist
  - if '${subcommandName}' is not meant to be an executable command, remove description parameter from '.command()' and use '.description()' instead
@@ -2144,10 +2143,10 @@ Expecting one of '${allowedValues.join("', '")}'`);
         const sourceExt = [".js", ".ts", ".tsx", ".mjs", ".cjs"];
         function findFile(baseDir, baseName) {
           const localBin = path3.resolve(baseDir, baseName);
-          if (fs3.existsSync(localBin)) return localBin;
+          if (fs4.existsSync(localBin)) return localBin;
           if (sourceExt.includes(path3.extname(baseName))) return void 0;
           const foundExt = sourceExt.find(
-            (ext) => fs3.existsSync(`${localBin}${ext}`)
+            (ext) => fs4.existsSync(`${localBin}${ext}`)
           );
           if (foundExt) return `${localBin}${foundExt}`;
           return void 0;
@@ -2159,7 +2158,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
         if (this._scriptPath) {
           let resolvedScriptPath;
           try {
-            resolvedScriptPath = fs3.realpathSync(this._scriptPath);
+            resolvedScriptPath = fs4.realpathSync(this._scriptPath);
           } catch {
             resolvedScriptPath = this._scriptPath;
           }
@@ -3081,11 +3080,11 @@ Expecting one of '${allowedValues.join("', '")}'`);
        */
       _getOutputContext(contextOptions) {
         contextOptions = contextOptions || {};
-        const error2 = !!contextOptions.error;
+        const error5 = !!contextOptions.error;
         let baseWrite;
         let hasColors;
         let helpWidth;
-        if (error2) {
+        if (error5) {
           baseWrite = (str) => this._outputConfiguration.writeErr(str);
           hasColors = this._outputConfiguration.getErrHasColors();
           helpWidth = this._outputConfiguration.getErrHelpWidth();
@@ -3098,7 +3097,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
           if (!hasColors) str = this._outputConfiguration.stripColor(str);
           return baseWrite(str);
         };
-        return { error: error2, write, hasColors, helpWidth };
+        return { error: error5, write, hasColors, helpWidth };
       }
       /**
        * Output help information for this command.
@@ -3697,7 +3696,7 @@ var require_grammar = __commonJS({
         }
         var match = new RegExpImpl("\u{1D306}", "u").exec("\u{1D306}");
         return !!match && match[0].length === 2;
-      } catch (error2) {
+      } catch (error5) {
       }
       return false;
     }
@@ -4368,7 +4367,7 @@ var require_dom = __commonJS({
        * @see https://dom.spec.whatwg.org/#dom-domimplementation-hasfeature DOM Living Standard
        * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-5CED94D7 DOM Level 3 Core
        */
-      hasFeature: function(feature, version) {
+      hasFeature: function(feature, version2) {
         return true;
       },
       /**
@@ -4887,8 +4886,8 @@ var require_dom = __commonJS({
        * @since Introduced in DOM Level 2
        * @see {@link DOMImplementation.hasFeature}
        */
-      isSupported: function(feature, version) {
-        return this.ownerDocument.implementation.hasFeature(feature, version);
+      isSupported: function(feature, version2) {
+        return this.ownerDocument.implementation.hasFeature(feature, version2);
       },
       /**
        * Look up the prefix associated to the given namespace URI, starting from this node.
@@ -11974,10 +11973,6 @@ var require_exif_reader = __commonJS({
   }
 });
 
-// scripts/import-comfy-workflow.ts
-var import_fs2 = __toESM(require("fs"), 1);
-var import_path2 = __toESM(require("path"), 1);
-
 // node_modules/commander/esm.mjs
 var import_index = __toESM(require_commander(), 1);
 var {
@@ -11994,6 +11989,9 @@ var {
   Option,
   Help
 } = import_index.default;
+
+// scripts/import-comfy.ts
+var import_fs2 = __toESM(require("fs"), 1);
 
 // dist/ComfyInterface.js
 var import_node_crypto = require("node:crypto");
@@ -12277,10 +12275,10 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 3;
   }
   if ("TERM_PROGRAM" in env) {
-    const version = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+    const version2 = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
     switch (env.TERM_PROGRAM) {
       case "iTerm.app": {
-        return version >= 3 ? 3 : 2;
+        return version2 >= 3 ? 3 : 2;
       }
       case "Apple_Terminal": {
         return 2;
@@ -12492,7 +12490,7 @@ var source_default = chalk;
 var unimportant = source_default.hex("#888");
 var error = source_default.hex("#f00").bgWhite;
 var warning = source_default.hex("#fa0");
-var success = source_default.hex("#0b0");
+var success = source_default.hex("#0b0").bgBlack;
 var DEBUG = false;
 var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
   socket;
@@ -12522,8 +12520,8 @@ var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
       if (DEBUG)
         console.log("WebSocket connection closed:", event.code, event.reason);
     });
-    socket.addEventListener("error", (error2) => {
-      console.error("WebSocket error:", error2);
+    socket.addEventListener("error", (error5) => {
+      console.error("WebSocket error:", error5);
     });
     await promise;
     return result;
@@ -12661,10 +12659,10 @@ var ComfyInterface = class {
    */
   async executePrompt(nodes, wait = false) {
     if (wait) {
-      let unsubscribe2 = function() {
-        ws.events.off("progress", on_progress2);
+      let unsubscribe = function() {
+        ws.events.off("progress", on_progress);
         ws.events.off("status", on_status);
-      }, on_progress2 = function(data) {
+      }, on_progress = function(data) {
         if (result.prompt_id === data.prompt_id) {
           if (wait === "print") {
             const progress = data.value / data.max;
@@ -12672,7 +12670,6 @@ var ComfyInterface = class {
           }
         }
       };
-      var unsubscribe = unsubscribe2, on_progress = on_progress2;
       if (!this._ws)
         await this.initializeWebsocket();
       const ws = this._ws;
@@ -12690,11 +12687,11 @@ var ComfyInterface = class {
           console.log(hist);
         }
         if (hist?.status.completed) {
-          unsubscribe2();
+          unsubscribe();
           resolve();
         }
       }
-      ws.events.on("progress", on_progress2);
+      ws.events.on("progress", on_progress);
       ws.events.on("status", on_status);
       await promise;
       if (wait === "print")
@@ -12745,9 +12742,9 @@ var ComfyInterface = class {
     let imageData;
     if (typeof image === "string") {
       if (typeof window === "undefined") {
-        const fs3 = await import("fs");
+        const fs4 = await import("fs");
         const { promisify } = await import("util");
-        const readFile = promisify(fs3.readFile);
+        const readFile = promisify(fs4.readFile);
         const buffer = await readFile(image);
         imageData = new Blob([buffer]);
       } else {
@@ -12879,12 +12876,12 @@ function get_node_path(import_path3, node) {
   let key = clean_key(node.name);
   let full_path = import_path3;
   if (node.category) {
-    let path3 = node.category.split("/");
-    for (let i = 0; i < path3.length; i++) {
-      let partial_path = import_path3 + path3.slice(0, i + 1).join("/");
+    let path_segments = node.category.split("/");
+    for (let i = 0; i < path_segments.length; i++) {
+      let partial_path = import_path.default.join(import_path3, ...path_segments.slice(0, i + 1));
       ensure_directory(partial_path);
     }
-    full_path = import_path3 + path3.join("/");
+    full_path = import_path.default.join(import_path3, ...path_segments);
   }
   full_path = import_path.default.join(full_path, key + ".ts");
   return full_path;
@@ -12929,7 +12926,7 @@ function write_file_with_confirmation(output_path, content, fallback = false) {
       input: process.stdin,
       output: process.stdout
     });
-    rl.question(`File "${output_path}" already exists. Overwrite? (${fallback ? "Y" : "y"}/${!fallback ? "N" : "n"}) `, (answer) => {
+    rl.question(warning2(`File "${output_path}" already exists. Overwrite? (${fallback ? "Y" : "y"}/${!fallback ? "N" : "n"})`), (answer) => {
       rl.close();
       if (answer === "") {
         if (fallback)
@@ -12937,13 +12934,13 @@ function write_file_with_confirmation(output_path, content, fallback = false) {
       }
       if (answer.toLowerCase() === "y") {
         import_fs.default.writeFileSync(output_path, content);
-        console.log(`File "${output_path}" has been overwritten.`);
+        console.log(success2(`File "${output_path}" has been overwritten.`));
       } else
-        console.log(`File "${output_path}" was not overwritten.`);
+        console.log(error2(`File "${output_path}" was not overwritten.`));
     });
   } else {
     import_fs.default.writeFileSync(output_path, content);
-    console.log(`File "${output_path}" has been created.`);
+    console.log(success2(`File "${output_path}" has been created.`));
   }
 }
 async function try_all(fns) {
@@ -12964,13 +12961,164 @@ async function try_all(fns) {
   }
   return null;
 }
+var unimportant2 = source_default.hex("#888");
+var error2 = source_default.hex("#f00").bgWhite;
+var warning2 = source_default.hex("#fa0");
+var success2 = source_default.hex("#0b0").bgBlack;
+
+// scripts/import-comfy.ts
+var import_console = require("console");
+var import_nodes_command = new Command("nodes").description("Import and transform all nodes from the API to a local directory as typescript classes.\nYou need those to write any code using comfy-code.\nMake sure to rerun this command every time your ComfyUI changes, for example when you install or update nodes.\nThis command will not delete files in the target directory, but it will replace them if necessary.\nIf you find yourself with deprecated classes for nodes you have since uninstalled, you can delete the imports folder and run this command again for a fresh import.").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output directory", "./imports/").action(run_import_nodes);
+async function run_import_nodes(options) {
+  console.log(unimportant2(JSON.stringify(options, void 0, 2)));
+  const PORT = options.port;
+  const URL = options.url;
+  const output_path = options.output;
+  console.log(`Server URL: ${URL}`);
+  console.log(`Port: ${PORT}`);
+  console.log(`Output path: ${output_path}`);
+  const comfy = new ComfyInterface(`${URL}:${PORT}`);
+  const res = await comfy.getNodeTypes();
+  for (let key in res) {
+    const v = res[key];
+    const clean_key2 = clean_key(key);
+    let full_path = get_node_path(output_path, v);
+    const outputs = v.output.map((x, i) => {
+      return {
+        type: x,
+        label: v.output_name[i],
+        is_list: v.output_is_list[i]
+      };
+    });
+    const inputs = [
+      ...Object.entries(v.input.required ?? {}).map((v2) => [...v2, true]),
+      ...Object.entries(v.input.optional ?? {}).map((v2) => [...v2, false])
+    ].map(([k, opts, required]) => {
+      if (typeof opts === "string") {
+        return {
+          name: k,
+          type: opts,
+          required
+        };
+      } else if (Array.isArray(opts)) {
+        if (opts.length === 0) {
+          return {
+            name: k,
+            type: k,
+            required
+          };
+        }
+        const is_enum = Array.isArray(opts[0]);
+        if (opts.length === 1) {
+          return {
+            name: k,
+            type: opts[0],
+            required: is_enum ? false : required
+          };
+        }
+        if (opts.length > 1) {
+          return {
+            name: k,
+            type: opts[0],
+            ...opts[1],
+            required: is_enum ? false : "default" in opts[1] ? false : required
+          };
+        }
+      }
+      console.log(opts);
+      throw new Error("wtf");
+    });
+    try {
+      let output_to_type = function(x) {
+        let type;
+        if (typeof x.type === "string") {
+          type = "'" + x.type.replace("'", "\\'") + "'";
+        } else {
+          type = x.type.map((x2) => "'" + x2.replace("'", "\\'") + "'").join(" | ");
+        }
+        return type;
+      }, input_to_type = function(x) {
+        let _type = x.type;
+        let type;
+        if (typeof _type === "string") {
+          if (_type === "TEXT" || _type === "STRING")
+            type = "string";
+          else if (_type === "BOOLEAN")
+            type = "boolean";
+          else if (_type === "NUMBER" || _type === "INTEGER" || _type === "FLOAT" || _type === "INT")
+            type = "number";
+          else
+            type = "'" + _type.replace("'", "\\'") + "'";
+        } else {
+          if (_type.length === 0) {
+            type = "any";
+          } else
+            type = _type.map((x2) => {
+              if (typeof x2 === "string") {
+                if (x2 === "TEXT" || x2 === "STRING")
+                  return "string";
+                return "'" + x2.replace("'", "\\'") + "'";
+              } else if (typeof x2 === "number")
+                return x2.toString();
+              else
+                return "any";
+            }).join(" | ");
+        }
+        return type;
+      };
+      const outputs_str = outputs.length > 0 ? `Object.fromEntries(this._outputs.map((x, i) => [x.label, x])) as {
+        ${outputs.map((x) => x.label + ": ComfyOutput<" + output_to_type(x) + ">").join(",\n")}
+    }` : `{}`;
+      import_fs2.default.writeFileSync(full_path, `
+import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';            
+            
+export class ${clean_key2} extends ComfyNode
+{
+    classType = '${key.replace("'", "\\'")}';
+
+    _outputs = [
+    ${outputs.map((x, i) => {
+        return `new ComfyOutput<${output_to_type(x)}>(this, ${i}, "${x.label.replace("'", "\\'")}")`;
+      }).join(",\n")}
+    ] as const;
+
+    outputs = ${outputs_str};
+
+    _inputs = [
+    ${inputs.map((x, i) => {
+        return `new ComfyInput<${input_to_type(x)}>(this, ${i}, "${x.name.replace("'", "\\'")}" ${"default" in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
+      }).join(",\n")}
+    ] as const;
+
+    inputs = Object.fromEntries(this._inputs.map((x, i) => [x.label, x])) as {
+        ${inputs.map((x) => `"${x.name}": ComfyInput<` + input_to_type(x) + ">").join(",\n")}
+    };
+    
+    constructor(initial_values?: {${inputs.map((x) => `"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + input_to_type(x) + "> | " + input_to_type(x)).join(",\n")}})
+    {
+        super();
+        this.initialize(initial_values);
+    }
+}
+`);
+    } catch (e) {
+      console.log(key);
+      console.log(v.input.required);
+      console.log((0, import_console.error)("Uncaught error, see above."));
+      throw e;
+    }
+  }
+  console.log(success2(`Created all ${Object.keys(res).length} classes.`));
+}
 
 // scripts/import-comfy-workflow.ts
+var import_fs3 = __toESM(require("fs"), 1);
+var import_path2 = __toESM(require("path"), 1);
 var import_exifreader = __toESM(require_exif_reader(), 1);
-async function run() {
-  program.option("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "../imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).parse(process.argv);
-  const options = program.opts();
-  console.log(options);
+var import_console2 = require("console");
+var import_workflow_command = new Command("workflow").description("Extract a prompt graph from a json file or an (animated) image and then save the graph in the form of a comfy-code typescript script.\nUseful for quick prototyping.\n").requiredOption("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "./imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).action(run_import_workflow);
+async function run_import_workflow(options) {
+  console.log(unimportant2(JSON.stringify(options, void 0, 2)));
   const PORT = Number.parseInt(options.port);
   const URL = options.url;
   const output_path = options.output;
@@ -12978,14 +13126,18 @@ async function run() {
   const imports_path = options.imports;
   const full_workflow = options.full;
   const override = options.override;
+  const relative_import_path = import_path2.default.relative(import_path2.default.dirname(output_path), imports_path);
+  console.log();
   console.log(`Server URL: ${URL}`);
   console.log(`Port: ${PORT}`);
   console.log(`Output path: ${output_path}`);
+  console.log(`Relative input path: ${relative_import_path}`);
+  console.log();
   const comfy = new ComfyInterface(`${URL}:${PORT}`);
   const all_nodes = await comfy.getNodeTypes();
   let workflow;
   if (input_path.endsWith(".json"))
-    workflow = JSON.parse(import_fs2.default.readFileSync(input_path, { encoding: "ascii" }));
+    workflow = JSON.parse(import_fs3.default.readFileSync(input_path, { encoding: "ascii" }));
   else {
     if (![".jpg", ".jpeg", ".png", ".tiff", ".webp", ".gif", ".avif", ".heic", ".heif"].includes(import_path2.default.extname(input_path).toLowerCase())) {
       console.warn("Unsupported input file format. Treating it like an exif image.");
@@ -12999,7 +13151,7 @@ async function run() {
     ]);
     if (workflow === null) {
       console.log(tags);
-      console.log("Fatal Error: Failed to find workflow data in the image's metadata.");
+      console.log((0, import_console2.error)("Fatal Error: Failed to find workflow data in the image's metadata."));
       return;
     }
   }
@@ -13007,8 +13159,7 @@ async function run() {
   function check_if_nodes_installed(nodes) {
     const uninstalled_nodes = nodes.filter((node) => !all_nodes[node]).filter((node) => !IGNORE_NODES.has(node));
     if (uninstalled_nodes.length > 0) {
-      console.log("ERROR: ");
-      console.log("Some of the nodes in this workflow could not be found in your ComfyUI installation. Please make sure everything is installed and loaded correctly.");
+      console.log((0, import_console2.error)("Fatal Error: Some of the nodes in this workflow could not be found in your ComfyUI installation. Please make sure everything is installed and loaded correctly."));
       console.log([...new Set(uninstalled_nodes)].join(", "));
       return false;
     }
@@ -13017,7 +13168,7 @@ async function run() {
   const imports = /* @__PURE__ */ new Set();
   let node_creations = [];
   if (!("version" in workflow)) {
-    let get_value2 = function(v) {
+    let get_value = function(v) {
       if (!Array.isArray(v))
         return JSON.stringify(v);
       let target = placeholders.get(v[0]);
@@ -13025,7 +13176,6 @@ async function run() {
       let target_name = target?.name;
       return `${target_name}.outputs.${socket_name}`;
     };
-    var get_value = get_value2;
     const sorting = sort_nodes_topologically(workflow);
     const nodes = sorting.map((id) => [id, workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
     if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
@@ -13040,7 +13190,7 @@ async function run() {
       });
       imports.add(base_name);
       let param_str = Object.entries(node.inputs).map(([k2, v]) => `
-	${k2}: ${get_value2(v)}`).join(",");
+	${k2}: ${get_value(v)}`).join(",");
       if (param_str.length > 0)
         param_str += "\n";
       return `const ${var_name} = new ${node.class_type}({${param_str}});`;
@@ -13079,14 +13229,12 @@ async function run() {
       const possible_inputs = new Set(all_inputs);
       node.inputs.forEach((input) => {
         if (!possible_inputs.has(input.name)) {
-          console.error(`Failed Sanity Check! Node ${class_name} does not have an input named ${input.name}. Make sure your imports are up to date!`);
+          console.error((0, import_console2.error)(`Failed Sanity Check! Node ${class_name} does not have an input named ${input.name}. Make sure your imports are up to date!`));
         }
         possible_inputs.delete(input.name);
-        console.log("Checking ", input);
         if (input.link !== void 0 && input.link !== null) {
           const source = link_map.get(input.link);
           if (!source) {
-            console.log("No source");
             return;
           }
           const sourceVar = node_vars.get(source.node_id);
@@ -13115,7 +13263,7 @@ async function run() {
       node_creations.push(`const ${var_name} = new ${class_name}({ ${paramStr} });`);
     });
   }
-  const import_statements = Array.from(imports).map((cls) => `import { ${cls} } from "${get_node_path(imports_path, all_nodes[cls])}";`).join("\n");
+  const import_statements = Array.from(imports).map((cls) => `import { ${cls} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0, -3)}";`).join("\n");
   const result = full_workflow ? `${import_statements}
 import { ComfyInterface, ComfyNode } from "comfy-code";
 
@@ -13128,12 +13276,25 @@ ${node_creations.join("\n")}
 comfy.executePrompt(activeGroup, "print").then(comfy.quit.bind(comfy));` : `${import_statements}
 
 ${node_creations.join("\n")}`;
+  console.log("--- RESULT ---");
+  console.log();
   console.log(result);
-  if (!override)
+  console.log();
+  if (!override) {
     write_file_with_confirmation(output_path, result, true);
-  else {
-    import_fs2.default.writeFileSync(output_path, result);
-    console.log(`File "${output_path}" has been created.`);
+  } else {
+    import_fs3.default.writeFileSync(output_path, result);
+    console.log(success2(`File "${output_path}" has been created.`));
   }
 }
-run().catch(console.error);
+
+// package.json
+var version = "1.0.1";
+
+// scripts/index.ts
+program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);
+var import_command = new Command("import").description("Various importers, both from files and from an API.");
+import_command.addCommand(import_nodes_command);
+import_command.addCommand(import_workflow_command);
+program.addCommand(import_command);
+program.parse();

@@ -7,7 +7,7 @@ import chalk from "chalk";
 const unimportant = chalk.hex("#888");
 const error = chalk.hex("#f00").bgWhite;
 const warning = chalk.hex("#fa0");
-const success = chalk.hex("#0b0");
+const success = chalk.hex("#0b0").bgBlack;
 
 const DEBUG = false;
 
