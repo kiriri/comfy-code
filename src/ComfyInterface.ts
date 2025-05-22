@@ -233,13 +233,45 @@ export class ComfyInterface
     }
 
     /**
+     * Returns all nodes which the input nodes require to work, including themselves.
+     * @param nodes 
+     */
+    _resolveDependencies(nodes:ComfyNode[]):ComfyNode[]
+    {
+        let result = new Set<ComfyNode>([...nodes]);
+        let frontier = [...nodes];
+
+        let node : ComfyNode;
+        while(node = frontier.pop())
+        {
+            for(const key in node.inputs)
+            {
+                const input = node.inputs[key];
+
+                if(input.target)
+                {
+                    const targetNode = input.target.node;
+
+                    if(!result.has(targetNode))
+                    {
+                        frontier.push(targetNode);
+                        result.add(targetNode);
+                    }
+                }
+            }
+        }
+
+        return [...result];
+    }
+
+    /**
      * Turns an array of connected Comfy Nodes into a form which can be sent to comfyui via the api.
      * @param nodes
      * @returns 
      */
-    generateJsonPrompt(nodes: ComfyNode[]): JSON_ComfyGraph
+    _generateJsonPrompt(nodes: ComfyNode[]): JSON_ComfyGraph
     {
-        return Object.fromEntries(nodes.map(x => [x.id, x.toJson()]))
+        return Object.fromEntries(this._resolveDependencies(nodes).map(x => [x.id, x.toJson()]))
     }
 
     /**
@@ -258,7 +290,7 @@ export class ComfyInterface
 
             const ws = this._ws!;
 
-            let result = await this.postJson('/prompt', { prompt: this.generateJsonPrompt(nodes) }) as JSON_PromptReturn;
+            let result = await this.postJson('/prompt', { prompt: this._generateJsonPrompt(nodes) }) as JSON_PromptReturn;
 
             if(result.error)
             {
@@ -319,7 +351,7 @@ export class ComfyInterface
             return result;
         }
 
-        return await this.postJson('/prompt', { prompt: this.generateJsonPrompt(nodes) }) as JSON_PromptReturn;
+        return await this.postJson('/prompt', { prompt: this._generateJsonPrompt(nodes) }) as JSON_PromptReturn;
 
 
     }

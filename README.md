@@ -92,7 +92,8 @@ In this case we want to run our graph, so we call
 const promptResult = await comfy.executePrompt(activeGroup, "print");
 ```
 
-The print option lets us see progress updates in the terminal.
+The print option lets us see progress updates in the terminal.  
+If you did not use `activeGroup`, replace it with an array containing at least all the output nodes. Comfy-Code will infer all dependency nodes by itself.  
 
 Now all that's left is to run the script, which I use `ts-node` for.  
 If you do not have ts-node installed globally, install it locally  

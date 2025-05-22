@@ -12645,12 +12645,34 @@ var ComfyInterface = class {
     return this.getJson("/system_stats");
   }
   /**
+   * Returns all nodes which the input nodes require to work, including themselves.
+   * @param nodes
+   */
+  _resolveDependencies(nodes) {
+    let result = /* @__PURE__ */ new Set([...nodes]);
+    let frontier = [...nodes];
+    let node;
+    while (node = frontier.pop()) {
+      for (const key in node.inputs) {
+        const input = node.inputs[key];
+        if (input.target) {
+          const targetNode = input.target.node;
+          if (!result.has(targetNode)) {
+            frontier.push(targetNode);
+            result.add(targetNode);
+          }
+        }
+      }
+    }
+    return [...result];
+  }
+  /**
    * Turns an array of connected Comfy Nodes into a form which can be sent to comfyui via the api.
    * @param nodes
    * @returns
    */
-  generateJsonPrompt(nodes) {
-    return Object.fromEntries(nodes.map((x) => [x.id, x.toJson()]));
+  _generateJsonPrompt(nodes) {
+    return Object.fromEntries(this._resolveDependencies(nodes).map((x) => [x.id, x.toJson()]));
   }
   /**
    * Execute a prompt
@@ -12673,7 +12695,7 @@ var ComfyInterface = class {
       if (!this._ws)
         await this.initializeWebsocket();
       const ws = this._ws;
-      let result = await this.postJson("/prompt", { prompt: this.generateJsonPrompt(nodes) });
+      let result = await this.postJson("/prompt", { prompt: this._generateJsonPrompt(nodes) });
       if (result.error) {
         console.log(error(`${result.error.type}: ${result.error.message} (${result.error.details}).`));
         return result;
@@ -12698,7 +12720,7 @@ var ComfyInterface = class {
         console.log(success(`Prompt Finished (${result.prompt_id})`));
       return result;
     }
-    return await this.postJson("/prompt", { prompt: this.generateJsonPrompt(nodes) });
+    return await this.postJson("/prompt", { prompt: this._generateJsonPrompt(nodes) });
   }
   /**
    * Interrupt current execution
@@ -13289,7 +13311,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.1";
+var version = "1.0.2";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);

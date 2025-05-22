@@ -38,7 +38,7 @@ export class ComfyInput<Type extends string | number | boolean>
     type!: Type; // this is just for easier type access
     // is_list: T;
 
-    target!: ComfyOutput<any> | string | number;
+    target!: ComfyOutput<any> ;
 
     default?: string | number | boolean;
 
