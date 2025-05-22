@@ -41,7 +41,7 @@ If you use different settings, check `npx comfy-code import nodes --help` for op
 Use 
 
 ```typescript
-const active_group = ComfyNode.newActiveGroup();
+const activeGroup = ComfyNode.newActiveGroup();
 ```
 
 to get an array which will automatically store all subsequently created ComfyNodes.  
@@ -50,7 +50,7 @@ You can omit this if you want to keep track of all your nodes yourself.
 Start by creating a node which loads a checkpoint, like:
 
 ```typescript
-const load_checkpoint = new CheckpointLoaderSimple({ ckpt_name:'checkpoint-name' });
+const loadCheckpoint = new CheckpointLoaderSimple({ ckpt_name:'checkpoint-name' });
 ```
 
 Your IDE should give you the ability to auto import the CheckpointLoaderSimple node from your imports folder. Otherwise you must do so manually like  
@@ -63,22 +63,22 @@ When you create a Node like that, the arguments represent the incoming connectio
 Let's create our clip text encoder nodes next so you'll see what I mean by references:  
 
 ```typescript
-const text_encode_positive = new CLIPTextEncode({ text: "positive prompt", clip: load_checkpoint.outputs.CLIP });
-const text_encode_negative = new CLIPTextEncode({ text: "negative prompt", clip: load_checkpoint.outputs.CLIP });
+const textEncodePositive = new CLIPTextEncode({ text: "positive prompt", clip: loadCheckpoint.outputs.CLIP });
+const textEncodeNegative = new CLIPTextEncode({ text: "negative prompt", clip: loadCheckpoint.outputs.CLIP });
 ```
 
 Here we used primitive string values for the prompt's text, but we connected the clip input to the clip output of the load checkpoint node we created earlier.  
 Another more dynamic way to create connections would be 
 
 ```typescript 
-load_checkpoint.outputs.clip.connect(text_encode_positive.inputs.clip);
+loadCheckpoint.outputs.clip.connect(textEncodePositive.inputs.clip);
 // or
-text_encode_positive.inputs.clip.connect(load_checkpoint.outputs.clip);
+textEncodePositive.inputs.clip.connect(loadCheckpoint.outputs.clip);
 ``` 
 
 The rest is just more of the same. We create EmptyLatentImage, KSampler, VAEDecode and SaveImage nodes and hook their sockets up to one another. Because this is javascript, we can use if clauses or for loops to build a more dynamic graph much more quickly than in ComfyUI's Web-UI.  
 
-And at the end of this all, our `active_group` array will have automatically stored all Nodes, and we can test it in ComfyUI.
+And at the end of this all, our `activeGroup` array will have automatically stored all Nodes, and we can test it in ComfyUI.
 For this we need to create a ComfyInterface instance
 
 ```typescript
@@ -89,7 +89,7 @@ This ComfyInterface exposes all API routes which ComfyUI makes available to us.
 In this case we want to run our graph, so we call
 
 ```typescript
-const promptResult = await comfy.executePrompt(active_group, "print");
+const promptResult = await comfy.executePrompt(activeGroup, "print");
 ```
 
 The print option lets us see progress updates in the terminal.

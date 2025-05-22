@@ -70,19 +70,19 @@ export async function generate_graph( {
 }
 )
 {
-    const has_image = !!base_image;
+    const hasImage = !!base_image;
 
     // collect all nodes in a single array without having to keep track of each node in particular:
-    const active_group = ComfyNode.new_active_group();
+    const activeGroup = ComfyNode.newActiveGroup();
 
-    const load_checkpoint = new CheckpointLoaderSimple({ ckpt_name }); //  
+    const loadCheckpoint = new CheckpointLoaderSimple({ ckpt_name }); //  
 
-    let last_lora: LoraLoader = undefined!;
+    let lastLora: LoraLoader = undefined!;
     for (let [name, weight] of loras)
     {
-        last_lora = new LoraLoader({
-            clip: last_lora! ? last_lora.outputs.CLIP : load_checkpoint.outputs.CLIP,
-            model: last_lora! ? last_lora.outputs.MODEL : load_checkpoint.outputs.MODEL,
+        lastLora = new LoraLoader({
+            clip: lastLora! ? lastLora.outputs.CLIP : loadCheckpoint.outputs.CLIP,
+            model: lastLora! ? lastLora.outputs.MODEL : loadCheckpoint.outputs.MODEL,
             lora_name: name as any,
             strength_clip: weight,
             strength_model: weight
@@ -90,29 +90,29 @@ export async function generate_graph( {
     }
 
     const clipLastLayer = new CLIPSetLastLayer({
-        clip: last_lora! ? last_lora.outputs.CLIP : load_checkpoint.outputs.CLIP,
+        clip: lastLora! ? lastLora.outputs.CLIP : loadCheckpoint.outputs.CLIP,
         stop_at_clip_layer: -2
     });
 
-    const text_encode_positive = new CLIPTextEncode({ text: prompt, clip: clipLastLayer.outputs.CLIP });
-    const text_encode_negative = new CLIPTextEncode({ text: prompt_n, clip: clipLastLayer.outputs.CLIP });
+    const textEncodePositive = new CLIPTextEncode({ text: prompt, clip: clipLastLayer.outputs.CLIP });
+    const textEncodeNegative = new CLIPTextEncode({ text: prompt_n, clip: clipLastLayer.outputs.CLIP });
 
-    let controlnet_apply: ControlNetApplyAdvanced;
+    let controlnetApply: ControlNetApplyAdvanced;
     let latent: VAEEncode | EmptyLatentImage;
-    if (has_image)
+    if (hasImage)
     {
         
         const image = new LoadImage({
             image:base_image.name as any
         });
 
-        const updscaled_image = new ImageScale({
+        const updscaledImage = new ImageScale({
             image:image.outputs.IMAGE,
             width,
             height
         })
 
-        latent = new VAEEncode({ pixels: updscaled_image.outputs.IMAGE, vae: load_checkpoint.outputs.VAE })
+        latent = new VAEEncode({ pixels: updscaledImage.outputs.IMAGE, vae: loadCheckpoint.outputs.VAE })
 
         const canny = new Canny({
             image: image.outputs.IMAGE,
@@ -120,12 +120,12 @@ export async function generate_graph( {
             high_threshold: 0.28,
         })
 
-        const controlnet_loader = new ControlNetLoader({ control_net_name });
+        const controlnetLoader = new ControlNetLoader({ control_net_name });
 
-        controlnet_apply = new ControlNetApplyAdvanced({
-            control_net: controlnet_loader.outputs.CONTROL_NET,
-            positive: text_encode_positive.outputs.CONDITIONING,
-            negative: text_encode_negative.outputs.CONDITIONING,
+        controlnetApply = new ControlNetApplyAdvanced({
+            control_net: controlnetLoader.outputs.CONTROL_NET,
+            positive: textEncodePositive.outputs.CONDITIONING,
+            negative: textEncodeNegative.outputs.CONDITIONING,
             image: canny.outputs.IMAGE,
             strength: controlnet_adherence,
             start_percent: 0,
@@ -137,41 +137,41 @@ export async function generate_graph( {
         latent = new EmptyLatentImage({ width, height, batch_size: 1 });
     }
 
-    const negative_conditioning = has_image ? controlnet_apply!.outputs.negative : text_encode_negative.outputs.CONDITIONING;
-    const positive_conditioning = has_image ? controlnet_apply!.outputs.positive : text_encode_positive.outputs.CONDITIONING;
+    const negativeConditioning = hasImage ? controlnetApply!.outputs.negative : textEncodeNegative.outputs.CONDITIONING;
+    const positiveConditioning = hasImage ? controlnetApply!.outputs.positive : textEncodePositive.outputs.CONDITIONING;
 
 
-    let last_sampler: KSampler;
+    let lastSampler: KSampler;
     const _depth = typeof depth === "number" ? depth : depth.length;
     for (let j = 0; j < _depth; j += 1)
     {
-        const k_sampler = new KSampler({
+        const kSampler = new KSampler({
             cfg: depth[j].cfg ?? 6,
             steps: depth[j].steps,
             scheduler: depth[j].scheduler ?? "karras",
             sampler_name: depth[j].sampler ?? "euler",
             seed: depth[j].seed ?? (seed + j), // 91553027, // 
             denoise: depth[j].denoising,
-            model: last_lora?.outputs.MODEL ?? load_checkpoint.outputs.MODEL,
-            negative: (depth[j].controlnet ?? true) ? negative_conditioning : text_encode_negative.outputs.CONDITIONING,
-            positive: (depth[j].controlnet ?? true) ? positive_conditioning : text_encode_positive.outputs.CONDITIONING,
-            latent_image: last_sampler! ? last_sampler.outputs.LATENT : latent.outputs.LATENT
+            model: lastLora?.outputs.MODEL ?? loadCheckpoint.outputs.MODEL,
+            negative: (depth[j].controlnet ?? true) ? negativeConditioning : textEncodeNegative.outputs.CONDITIONING,
+            positive: (depth[j].controlnet ?? true) ? positiveConditioning : textEncodePositive.outputs.CONDITIONING,
+            latent_image: lastSampler! ? lastSampler.outputs.LATENT : latent.outputs.LATENT
         });
 
-        last_sampler = k_sampler;
+        lastSampler = kSampler;
     }
 
-    const vae_decode = new VAEDecode({
-        samples: last_sampler!.outputs.LATENT,
-        vae: load_checkpoint.outputs.VAE
+    const vaeDecode = new VAEDecode({
+        samples: lastSampler!.outputs.LATENT,
+        vae: loadCheckpoint.outputs.VAE
     });
 
-    const save_image = new SaveImage({
+    const saveImage = new SaveImage({
         filename_prefix: output_name ?? "output",
-        images: vae_decode.outputs.IMAGE,
+        images: vaeDecode.outputs.IMAGE,
     });
 
 
-    return active_group;
+    return activeGroup;
 }
 

@@ -34,36 +34,36 @@ export async function run_t2i({
 }: T2I_Opts
 )
 {
-    const active_group = ComfyNode.new_active_group();
+    const activeGroup = ComfyNode.newActiveGroup();
 
-    const load_checkpoint = new CheckpointLoaderSimple({ ckpt_name });
+    const loadCheckpoint = new CheckpointLoaderSimple({ ckpt_name });
 
-    const text_encode_positive = new CLIPTextEncode({ text: prompt, clip: load_checkpoint.outputs.CLIP });
-    const text_encode_negative = new CLIPTextEncode({ text: prompt_n, clip: load_checkpoint.outputs.CLIP });
+    const textEncodePositive = new CLIPTextEncode({ text: prompt, clip: loadCheckpoint.outputs.CLIP });
+    const textEncodeNegative = new CLIPTextEncode({ text: prompt_n, clip: loadCheckpoint.outputs.CLIP });
 
-    const empty_latent = new EmptyLatentImage({
+    const emptyLatent = new EmptyLatentImage({
         width,
         height,
     });
 
     const sampler = new KSampler({
-        latent_image: empty_latent.outputs.LATENT,
-        model: load_checkpoint.outputs.MODEL,
-        positive: text_encode_positive.outputs.CONDITIONING,
-        negative: text_encode_negative.outputs.CONDITIONING,
+        latent_image: emptyLatent.outputs.LATENT,
+        model: loadCheckpoint.outputs.MODEL,
+        positive: textEncodePositive.outputs.CONDITIONING,
+        negative: textEncodeNegative.outputs.CONDITIONING,
         // sampler_name: "euler_ancestral",
         // scheduler: "karras",
         steps
     });
 
-    const vae_decode = new VAEDecode({
+    const vaeDecode = new VAEDecode({
         samples:sampler.outputs.LATENT,
-        vae:load_checkpoint.outputs.VAE
+        vae:loadCheckpoint.outputs.VAE
     });
 
-    const save_image = new SaveImage({
-        images:vae_decode.outputs.IMAGE
+    const saveImage = new SaveImage({
+        images:vaeDecode.outputs.IMAGE
     });
 
-    comfy.executePrompt(active_group);
+    comfy.executePrompt(activeGroup);
 }
