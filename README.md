@@ -111,7 +111,7 @@ And that's it. Your generated graph is being processed in Comfy.
 
 ## Importing an existing workflow
 
-You can turn a json workflow file into a typescript script by using the `import-comfy-workflow` script. Both api exported workflow files and regular workflow files are supported, but the api version is preferred.  
+You can turn a json workflow file into a typescript script by using the `comfy-code import workflow` script. Both api exported workflow files and regular workflow files are supported, but the api version is preferred.  
 Example:  
 
 ```bash

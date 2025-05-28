@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { v7 } from "uuid";
 import { ComfyNode } from "./ComfyNode.js";
 import type { JSON_ComfyGraph, JSON_ComfyNodeTypes, JSON_History, JSON_HistoryEntry, JSON_PromptReturn, JSON_Queue, JSON_SystemStats, JSON_WS_Progress, JSON_WS_Status } from "./JsonTypes.js";
-import EventEmitter from 'node:events';
 import chalk from "chalk";
+import { EventEmitter } from "./EventEmitter.js";
 
 const unimportant = chalk.hex("#888");
 const error = chalk.hex("#f00").bgWhite;
@@ -11,7 +11,9 @@ const success = chalk.hex("#0b0").bgBlack;
 
 const DEBUG = false;
 
-interface ComfyWebsocketEvents
+
+
+type ComfyWebsocketEvents =
 {
     message: [JSON_WS_Status | JSON_WS_Progress];
     status: [JSON_WS_Status];
@@ -22,11 +24,12 @@ export class ComfyWebsocketInstance
 {
     readonly socket: WebSocket;
 
-    events = new EventEmitter<ComfyWebsocketEvents>();
+    events :  EventEmitter<ComfyWebsocketEvents>;
 
     private constructor(socket: WebSocket)
     {
         this.socket = socket;
+        this.events = new EventEmitter<ComfyWebsocketEvents>();
     }
 
     static async connect(url: string = "ws://localhost:8188/")
@@ -35,7 +38,7 @@ export class ComfyWebsocketInstance
             url += "/";
 
         // Creates a new WebSocket connection to the specified URL.
-        const socket = new WebSocket(url + `ws?clientId=${randomUUID()}`);
+        const socket = new WebSocket(url + `ws?clientId=${v7()}`);
 
         const result = new ComfyWebsocketInstance(socket);
 

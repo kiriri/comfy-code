@@ -11993,9 +11993,88 @@ var {
 // scripts/import-comfy.ts
 var import_fs2 = __toESM(require("fs"), 1);
 
-// dist/ComfyInterface.js
-var import_node_crypto = require("node:crypto");
-var import_node_events = __toESM(require("node:events"), 1);
+// node_modules/uuid/dist/esm/stringify.js
+var byteToHex = [];
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 256).toString(16).slice(1));
+}
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+
+// node_modules/uuid/dist/esm/rng.js
+var import_crypto = require("crypto");
+var rnds8Pool = new Uint8Array(256);
+var poolPtr = rnds8Pool.length;
+function rng() {
+  if (poolPtr > rnds8Pool.length - 16) {
+    (0, import_crypto.randomFillSync)(rnds8Pool);
+    poolPtr = 0;
+  }
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
+}
+
+// node_modules/uuid/dist/esm/v7.js
+var _state = {};
+function v7(options, buf, offset) {
+  let bytes;
+  if (options) {
+    bytes = v7Bytes(options.random ?? options.rng?.() ?? rng(), options.msecs, options.seq, buf, offset);
+  } else {
+    const now = Date.now();
+    const rnds = rng();
+    updateV7State(_state, now, rnds);
+    bytes = v7Bytes(rnds, _state.msecs, _state.seq, buf, offset);
+  }
+  return buf ?? unsafeStringify(bytes);
+}
+function updateV7State(state, now, rnds) {
+  state.msecs ??= -Infinity;
+  state.seq ??= 0;
+  if (now > state.msecs) {
+    state.seq = rnds[6] << 23 | rnds[7] << 16 | rnds[8] << 8 | rnds[9];
+    state.msecs = now;
+  } else {
+    state.seq = state.seq + 1 | 0;
+    if (state.seq === 0) {
+      state.msecs++;
+    }
+  }
+  return state;
+}
+function v7Bytes(rnds, msecs, seq, buf, offset = 0) {
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  if (!buf) {
+    buf = new Uint8Array(16);
+    offset = 0;
+  } else {
+    if (offset < 0 || offset + 16 > buf.length) {
+      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
+    }
+  }
+  msecs ??= Date.now();
+  seq ??= rnds[6] * 127 << 24 | rnds[7] << 16 | rnds[8] << 8 | rnds[9];
+  buf[offset++] = msecs / 1099511627776 & 255;
+  buf[offset++] = msecs / 4294967296 & 255;
+  buf[offset++] = msecs / 16777216 & 255;
+  buf[offset++] = msecs / 65536 & 255;
+  buf[offset++] = msecs / 256 & 255;
+  buf[offset++] = msecs & 255;
+  buf[offset++] = 112 | seq >>> 28 & 15;
+  buf[offset++] = seq >>> 20 & 255;
+  buf[offset++] = 128 | seq >>> 14 & 63;
+  buf[offset++] = seq >>> 6 & 255;
+  buf[offset++] = seq << 2 & 255 | rnds[10] & 3;
+  buf[offset++] = rnds[11];
+  buf[offset++] = rnds[12];
+  buf[offset++] = rnds[13];
+  buf[offset++] = rnds[14];
+  buf[offset++] = rnds[15];
+  return buf;
+}
+var v7_default = v7;
 
 // node_modules/chalk/source/vendor/ansi-styles/index.js
 var ANSI_BACKGROUND_OFFSET = 10;
@@ -12486,6 +12565,29 @@ var chalk = createChalk();
 var chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
 var source_default = chalk;
 
+// dist/EventEmitter.js
+var EventEmitter = class {
+  callbacks = {};
+  constructor() {
+  }
+  on(event, cb) {
+    if (!this.callbacks[event])
+      this.callbacks[event] = [];
+    this.callbacks[event].push(cb);
+  }
+  off(event, cb) {
+    if (!this.callbacks[event])
+      return;
+    this.callbacks[event].splice(this.callbacks[event].indexOf(cb), 1);
+  }
+  emit(event, ...data) {
+    let cbs = this.callbacks[event];
+    if (cbs) {
+      cbs.forEach((cb) => cb(...data));
+    }
+  }
+};
+
 // dist/ComfyInterface.js
 var unimportant = source_default.hex("#888");
 var error = source_default.hex("#f00").bgWhite;
@@ -12494,14 +12596,15 @@ var success = source_default.hex("#0b0").bgBlack;
 var DEBUG = false;
 var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
   socket;
-  events = new import_node_events.default();
+  events;
   constructor(socket) {
     this.socket = socket;
+    this.events = new EventEmitter();
   }
   static async connect(url = "ws://localhost:8188/") {
     if (!url.endsWith("/"))
       url += "/";
-    const socket = new WebSocket(url + `ws?clientId=${(0, import_node_crypto.randomUUID)()}`);
+    const socket = new WebSocket(url + `ws?clientId=${v7_default()}`);
     const result = new _ComfyWebsocketInstance(socket);
     let { promise, reject, resolve } = Promise.withResolvers();
     socket.addEventListener("open", (event) => {
