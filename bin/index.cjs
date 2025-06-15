@@ -1142,7 +1142,7 @@ var require_command = __commonJS({
   "node_modules/commander/lib/command.js"(exports2) {
     var EventEmitter2 = require("node:events").EventEmitter;
     var childProcess = require("node:child_process");
-    var path3 = require("node:path");
+    var path4 = require("node:path");
     var fs4 = require("node:fs");
     var process3 = require("node:process");
     var { Argument: Argument2, humanReadableArgName } = require_argument();
@@ -2142,9 +2142,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
         let launchWithNode = false;
         const sourceExt = [".js", ".ts", ".tsx", ".mjs", ".cjs"];
         function findFile(baseDir, baseName) {
-          const localBin = path3.resolve(baseDir, baseName);
+          const localBin = path4.resolve(baseDir, baseName);
           if (fs4.existsSync(localBin)) return localBin;
-          if (sourceExt.includes(path3.extname(baseName))) return void 0;
+          if (sourceExt.includes(path4.extname(baseName))) return void 0;
           const foundExt = sourceExt.find(
             (ext) => fs4.existsSync(`${localBin}${ext}`)
           );
@@ -2162,17 +2162,17 @@ Expecting one of '${allowedValues.join("', '")}'`);
           } catch {
             resolvedScriptPath = this._scriptPath;
           }
-          executableDir = path3.resolve(
-            path3.dirname(resolvedScriptPath),
+          executableDir = path4.resolve(
+            path4.dirname(resolvedScriptPath),
             executableDir
           );
         }
         if (executableDir) {
           let localFile = findFile(executableDir, executableFile);
           if (!localFile && !subcommand._executableFile && this._scriptPath) {
-            const legacyName = path3.basename(
+            const legacyName = path4.basename(
               this._scriptPath,
-              path3.extname(this._scriptPath)
+              path4.extname(this._scriptPath)
             );
             if (legacyName !== this._name) {
               localFile = findFile(
@@ -2183,7 +2183,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
           }
           executableFile = localFile || executableFile;
         }
-        launchWithNode = sourceExt.includes(path3.extname(executableFile));
+        launchWithNode = sourceExt.includes(path4.extname(executableFile));
         let proc;
         if (process3.platform !== "win32") {
           if (launchWithNode) {
@@ -3030,7 +3030,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @return {Command}
        */
       nameFromFilename(filename) {
-        this._name = path3.basename(filename, path3.extname(filename));
+        this._name = path4.basename(filename, path4.extname(filename));
         return this;
       }
       /**
@@ -3044,9 +3044,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {string} [path]
        * @return {(string|null|Command)}
        */
-      executableDir(path4) {
-        if (path4 === void 0) return this._executableDir;
-        this._executableDir = path4;
+      executableDir(path5) {
+        if (path5 === void 0) return this._executableDir;
+        this._executableDir = path5;
         return this;
       }
       /**
@@ -11992,6 +11992,7 @@ var {
 
 // scripts/import-comfy.ts
 var import_fs2 = __toESM(require("fs"), 1);
+var import_path2 = __toESM(require("path"), 1);
 
 // node_modules/uuid/dist/esm/stringify.js
 var byteToHex = [];
@@ -12902,11 +12903,30 @@ var ComfyInterface = class {
 // scripts/shared.ts
 var import_fs = __toESM(require("fs"), 1);
 var import_path = __toESM(require("path"), 1);
+var import_crypto2 = __toESM(require("crypto"), 1);
 var import_readline = __toESM(require("readline"), 1);
-function ensure_directory(path3) {
-  if (!import_fs.default.existsSync(path3)) {
-    import_fs.default.mkdirSync(path3, { recursive: true });
+function ensure_directory(path4) {
+  if (!import_fs.default.existsSync(path4)) {
+    import_fs.default.mkdirSync(path4, { recursive: true });
   }
+}
+async function sha256sum(opts) {
+  const hash = import_crypto2.default.createHash("sha256");
+  if ("filename" in opts) {
+    const filename = opts["filename"];
+    const input = import_fs.default.createReadStream(filename);
+    return new Promise((resolve) => {
+      input.on("readable", () => {
+        const data = input.read();
+        if (data)
+          hash.update(data);
+        else
+          resolve(hash.digest("hex"));
+      });
+    });
+  }
+  hash.update(opts.value);
+  return hash.digest("hex");
 }
 function clean_key(key) {
   key = key.replace(/[\s]/g, "").replace("+", "Plus");
@@ -12997,16 +13017,16 @@ function clean_key(key) {
   ]);
   return reservedKeywords.has(candidate) ? `_${candidate}` : candidate;
 }
-function get_node_path(import_path3, node) {
+function get_node_path(import_path4, node) {
   let key = clean_key(node.name);
-  let full_path = import_path3;
+  let full_path = import_path4;
   if (node.category) {
     let path_segments = node.category.split("/");
     for (let i = 0; i < path_segments.length; i++) {
-      let partial_path = import_path.default.join(import_path3, ...path_segments.slice(0, i + 1));
+      let partial_path = import_path.default.join(import_path4, ...path_segments.slice(0, i + 1));
       ensure_directory(partial_path);
     }
-    full_path = import_path.default.join(import_path3, ...path_segments);
+    full_path = import_path.default.join(import_path4, ...path_segments);
   }
   full_path = import_path.default.join(full_path, key + ".ts");
   return full_path;
@@ -13093,21 +13113,106 @@ var success2 = source_default.hex("#0b0").bgBlack;
 
 // scripts/import-comfy.ts
 var import_console = require("console");
-var import_nodes_command = new Command("nodes").description("Import and transform all nodes from the API to a local directory as typescript classes.\nYou need those to write any code using comfy-code.\nMake sure to rerun this command every time your ComfyUI changes, for example when you install or update nodes.\nThis command will not delete files in the target directory, but it will replace them if necessary.\nIf you find yourself with deprecated classes for nodes you have since uninstalled, you can delete the imports folder and run this command again for a fresh import.").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output directory", "./imports/").action(run_import_nodes);
+var import_readline2 = __toESM(require("readline"), 1);
+var import_nodes_command = new Command("nodes").description("Import and transform all nodes from the API to a local directory as typescript classes.\nYou need those to write any code using comfy-code.\nMake sure to rerun this command every time your ComfyUI changes, for example when you install or update nodes.\nThis command will not delete files in the target directory, but it will replace them if necessary.\nIf you find yourself with deprecated classes for nodes you have since uninstalled, you can delete the imports folder and run this command again for a fresh import.").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output directory", "./imports/").option("-y, --override", "Override all existing files imported files.", false).action(run_import_nodes);
 async function run_import_nodes(options) {
   console.log(unimportant2(JSON.stringify(options, void 0, 2)));
   const PORT = options.port;
   const URL = options.url;
   const output_path = options.output;
+  let override = options.override;
   console.log(`Server URL: ${URL}`);
   console.log(`Port: ${PORT}`);
   console.log(`Output path: ${output_path}`);
   const comfy = new ComfyInterface(`${URL}:${PORT}`);
   const res = await comfy.getNodeTypes();
+  async function generate_real_index(dirPath, relativePath = "") {
+    const result = /* @__PURE__ */ new Map();
+    const entries = await import_fs2.default.promises.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = import_path2.default.join(dirPath, entry.name);
+      const currentRelativePath = import_path2.default.join(relativePath, entry.name);
+      if (entry.isDirectory()) {
+        const subDirResults = await generate_real_index(fullPath, currentRelativePath);
+        subDirResults.forEach((hash, filePath) => result.set(filePath, hash));
+      } else if (entry.isFile()) {
+        try {
+          const hash = await sha256sum({ filename: fullPath });
+          result.set(currentRelativePath, hash);
+        } catch (error5) {
+          result.set(currentRelativePath, "NULL");
+        }
+      }
+    }
+    return result;
+  }
+  const real_current_index = await generate_real_index(output_path);
+  let stored_old_index = null;
+  try {
+    let old_index_data = import_fs2.default.readFileSync(import_path2.default.join(output_path, "index.json"), { encoding: "utf-8" });
+    stored_old_index = new Map(Object.entries(JSON.parse(old_index_data)));
+  } catch (e) {
+  }
+  ;
+  const locked_files = /* @__PURE__ */ new Map();
+  if (stored_old_index) {
+    for (let [expected_file, expected_hash] of stored_old_index) {
+      if (!real_current_index.has(expected_file))
+        continue;
+      const real_old_hash = real_current_index.get(expected_file);
+      if (real_old_hash == "NULL") {
+        continue;
+      }
+      if (
+        // if any and all files should be overridden, just delete them and recreate them later
+        !override && real_old_hash !== expected_hash
+      ) {
+        const rl = import_readline2.default.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        await new Promise((resolve, reject) => {
+          rl.question(warning2(`File "${expected_file}" was manually changed since the last import. Should this importer delete or override it? (Y/n/y!)`), (answer) => {
+            rl.close();
+            if (answer.toLowerCase() === "y!") {
+              override = true;
+              answer = "y";
+            }
+            if (answer === "")
+              answer = "y";
+            if (answer.toLowerCase() === "y") {
+              import_fs2.default.rmSync(import_path2.default.join(output_path, expected_file));
+              console.log(success2(`File "${import_path2.default.join(output_path, expected_file)}" has been discarded.`));
+            } else {
+              locked_files.set(import_path2.default.join(output_path, expected_file), true);
+              console.log((0, import_console.error)(`File "${import_path2.default.join(output_path, expected_file)}" will not be imported.`));
+            }
+            resolve();
+          });
+        });
+      } else {
+        try {
+          import_fs2.default.rmSync(import_path2.default.join(output_path, expected_file));
+          console.log(success2(`Changes in "${import_path2.default.join(output_path, expected_file)}" have been discarded.`));
+        } catch (e) {
+        }
+      }
+    }
+  }
+  const new_index = /* @__PURE__ */ new Map();
   for (let key in res) {
     const v = res[key];
     const clean_key2 = clean_key(key);
     let full_path = get_node_path(output_path, v);
+    let relative_path = import_path2.default.relative(output_path, full_path);
+    if (locked_files.has(full_path)) {
+      console.log("Old Hash is ", stored_old_index.get(relative_path));
+      new_index.set(
+        relative_path,
+        stored_old_index.get(relative_path)
+      );
+      continue;
+    }
     const outputs = v.output.map((x, i) => {
       return {
         type: x,
@@ -13194,7 +13299,7 @@ async function run_import_nodes(options) {
       const outputs_str = outputs.length > 0 ? `Object.fromEntries(this._outputs.map((x, i) => [x.label, x])) as {
         ${outputs.map((x) => x.label + ": ComfyOutput<" + output_to_type(x) + ">").join(",\n")}
     }` : `{}`;
-      import_fs2.default.writeFileSync(full_path, `
+      const full_output = `
 import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';            
             
 export class ${clean_key2} extends ComfyNode
@@ -13225,7 +13330,9 @@ export class ${clean_key2} extends ComfyNode
         this.initialize(initial_values);
     }
 }
-`);
+`;
+      import_fs2.default.writeFileSync(full_path, full_output);
+      new_index.set(import_path2.default.relative(output_path, full_path), await sha256sum({ value: full_output }));
     } catch (e) {
       console.log(key);
       console.log(v.input.required);
@@ -13234,11 +13341,12 @@ export class ${clean_key2} extends ComfyNode
     }
   }
   console.log(success2(`Created all ${Object.keys(res).length} classes.`));
+  import_fs2.default.writeFileSync(import_path2.default.join(output_path, "index.json"), JSON.stringify(Object.fromEntries(new_index.entries())));
 }
 
 // scripts/import-comfy-workflow.ts
 var import_fs3 = __toESM(require("fs"), 1);
-var import_path2 = __toESM(require("path"), 1);
+var import_path3 = __toESM(require("path"), 1);
 var import_exifreader = __toESM(require_exif_reader(), 1);
 var import_console2 = require("console");
 var import_workflow_command = new Command("workflow").description("Extract a prompt graph from a json file or an (animated) image and then save the graph in the form of a comfy-code typescript script.\nUseful for quick prototyping.\n").requiredOption("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "./imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).action(run_import_workflow);
@@ -13251,7 +13359,7 @@ async function run_import_workflow(options) {
   const imports_path = options.imports;
   const full_workflow = options.full;
   const override = options.override;
-  const relative_import_path = import_path2.default.relative(import_path2.default.dirname(output_path), imports_path);
+  const relative_import_path = import_path3.default.relative(import_path3.default.dirname(output_path), imports_path);
   console.log();
   console.log(`Server URL: ${URL}`);
   console.log(`Port: ${PORT}`);
@@ -13264,7 +13372,7 @@ async function run_import_workflow(options) {
   if (input_path.endsWith(".json"))
     workflow = JSON.parse(import_fs3.default.readFileSync(input_path, { encoding: "ascii" }));
   else {
-    if (![".jpg", ".jpeg", ".png", ".tiff", ".webp", ".gif", ".avif", ".heic", ".heif"].includes(import_path2.default.extname(input_path).toLowerCase())) {
+    if (![".jpg", ".jpeg", ".png", ".tiff", ".webp", ".gif", ".avif", ".heic", ".heif"].includes(import_path3.default.extname(input_path).toLowerCase())) {
       console.warn("Unsupported input file format. Treating it like an exif image.");
     }
     const tags = await import_exifreader.default.load(input_path);
@@ -13325,7 +13433,7 @@ async function run_import_workflow(options) {
     nodes.sort((a, b) => a.order - b.order);
     if (!check_if_nodes_installed(nodes.map((node) => node.type)))
       return;
-    ensure_directory(import_path2.default.dirname(output_path));
+    ensure_directory(import_path3.default.dirname(output_path));
     const link_map = /* @__PURE__ */ new Map();
     const node_vars = /* @__PURE__ */ new Map();
     const used_names = /* @__PURE__ */ new Set();
@@ -13414,7 +13522,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.2";
+var version = "1.0.3";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);

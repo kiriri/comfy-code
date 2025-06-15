@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from "path";
+import crypto from "crypto";
 import type { JSON_ComfyNode, JSON_ComfyNodeTypes } from '../dist/JsonTypes';
 import ReadLine from 'readline';
 import chalk from 'chalk';
@@ -13,6 +14,39 @@ export function ensure_directory(path: string)
   {
     fs.mkdirSync(path, { recursive: true });
   }
+}
+
+/**
+ * Digests the contents of a file or a string into a sha256sum
+ * @param opts 
+ */
+export async function sha256sum(opts: {
+  filename: string
+} | {
+  value: string
+}) : Promise<string>
+{
+  const hash = crypto.createHash('sha256');
+
+  if ("filename" in opts)
+  {
+    const filename = opts["filename"];
+    const input = fs.createReadStream(filename);
+    return new Promise<string>((resolve) =>
+    {
+      input.on('readable', () =>
+      {
+        const data = input.read();
+        if (data)
+          hash.update(data);
+        else
+          resolve(hash.digest('hex'));
+      });
+    })
+  }
+
+  hash.update(opts.value);
+  return hash.digest('hex');
 }
 
 /**
@@ -157,7 +191,7 @@ export function get_node_path(import_path: string, node: JSON_ComfyNodeTypes[any
       ensure_directory(partial_path);
     }
 
-    full_path = path.join(import_path,...path_segments);
+    full_path = path.join(import_path, ...path_segments);
   }
 
   full_path = path.join(full_path, key + '.ts');
@@ -239,20 +273,20 @@ export function write_file_with_confirmation(output_path: string, content: strin
     rl.question(warning(`File "${output_path}" already exists. Overwrite? (${fallback ? 'Y' : 'y'}/${!fallback ? 'N' : 'n'})`), (answer) =>
     {
       rl.close();
-      if(answer === "")
-        if(fallback)
+      if (answer === "")
+        if (fallback)
           answer = "y";
 
       if (answer.toLowerCase() === 'y')
       {
         fs.writeFileSync(output_path, content);
         console.log(success(`File "${output_path}" has been overwritten.`));
-      } 
+      }
       else
         console.log(error(`File "${output_path}" was not overwritten.`));
-      
+
     });
-  } 
+  }
   else
   {
     fs.writeFileSync(output_path, content);
@@ -264,20 +298,20 @@ export function write_file_with_confirmation(output_path: string, content: strin
  * Try each function one after another until one doesn't throw an error.
  * @param fn 
  */
-export async function try_all<T>(fns:(()=>T|Promise<T>)[]) : Promise<T|null>
+export async function try_all<T>(fns: (() => T | Promise<T>)[]): Promise<T | null>
 {
-  for(let fn of fns)
+  for (let fn of fns)
   {
     try
     {
       let res = fn();
 
-      if(res instanceof Promise)
+      if (res instanceof Promise)
       {
         let failed = false;
-        res.catch(()=>failed = true);
+        res.catch(() => failed = true);
         let real_res = await res;
-        if(!failed)
+        if (!failed)
           return real_res;
       }
       else
@@ -285,10 +319,10 @@ export async function try_all<T>(fns:(()=>T|Promise<T>)[]) : Promise<T|null>
         return res;
       }
     }
-    catch(e){}
-    
+    catch (e) { }
 
-    
+
+
   }
 
   return null;

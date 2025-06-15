@@ -17,7 +17,9 @@
 </div>
 
 ## Getting started
-This project requires node version 23 or newer!  
+Generated comfy graphs work in both the Browser and Node environments.  
+However, setting up a project requires node version 23 or newer!  
+
 
 `npm i comfy-code`  
 
@@ -111,7 +113,7 @@ And that's it. Your generated graph is being processed in Comfy.
 
 ## Importing an existing workflow
 
-You can turn a json workflow file into a typescript script by using the `comfy-code import workflow` script. Both api exported workflow files and regular workflow files are supported, but the api version is preferred.  
+You can turn a json workflow file or an image containing a workflow into a typescript script by using the `comfy-code import workflow` script. Both api exported workflow files and regular workflow files are supported, but the api version is preferred.  
 Example:  
 
 ```bash
@@ -119,7 +121,7 @@ npx comfy-code import workflow -i ~/Downloads/Unsaved\ Workflow.json -f -o ./tes
 ```
 
 Use the f flag to generate a script which will execute the graph as a prompt when run. Omit the f flag to just generate the graph.  
-Use --help for more options.  
+Use `--help` for more options.  
 
 Let's quickly run the workflow to see if everything worked:  
 
@@ -130,6 +132,14 @@ npx ts-node ./workflows/workflow.ts
 ```
 
 The default -f setup should now print progress updates to the console.  
+
+## Troubleshooting
+
+If you encounter CORS errors, you may need to run ComfyUI using `--enable-cors-header` 
+
+```bash
+python3 main.py --enable-cors-header
+```
 
 ## Scope/Future of the project  
 This is a side project. Pull requests that improve existing features will be merged. Bugs will be fixed, feature requests will likely be ignored.
