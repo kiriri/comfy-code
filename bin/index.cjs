@@ -13131,12 +13131,15 @@ async function run_import_nodes(options) {
       input: process.stdin,
       output: process.stdout
     });
-    rl.question(warning2(`Directory "${output_path}" does not exist. Would you like to create it? (Y/n)`), (answer) => {
-      rl.close();
-      if (answer.toLowerCase() === "n")
-        process.exit();
-      import_fs2.default.mkdirSync(output_path);
-      console.log(success2(`Directory "${output_path}" has been created.`));
+    await new Promise((resolve, reject) => {
+      rl.question(warning2(`Directory "${output_path}" does not exist. Would you like to create it? (Y/n)`), (answer) => {
+        rl.close();
+        if (answer.toLowerCase() === "n")
+          process.exit();
+        import_fs2.default.mkdirSync(output_path);
+        console.log(success2(`Directory "${output_path}" has been created.`));
+        resolve();
+      });
     });
   }
   async function generate_real_index(dirPath, relativePath = "") {

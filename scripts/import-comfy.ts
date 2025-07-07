@@ -19,7 +19,7 @@ export const import_nodes_command = new Command('nodes')
 
 export async function run_import_nodes(options)
 {
-
+    
 
     console.log(unimportant(JSON.stringify(options, undefined, 2)));
 
@@ -41,15 +41,20 @@ export async function run_import_nodes(options)
             input: process.stdin,
             output: process.stdout
         });
-        rl.question(warning(`Directory "${output_path}" does not exist. Would you like to create it? (Y/n)`), (answer) =>
+        await new Promise<void>((resolve, reject) =>
         {
-            rl.close();
+            rl.question(warning(`Directory "${output_path}" does not exist. Would you like to create it? (Y/n)`), (answer) =>
+            {
+                rl.close();
 
-            if (answer.toLowerCase() === "n")
-                process.exit();
+                if(answer.toLowerCase() === "n")
+                    process.exit();
 
-            fs.mkdirSync(output_path);
-            console.log(success(`Directory "${output_path}" has been created.`));
+                fs.mkdirSync(output_path);
+                console.log(success(`Directory "${output_path}" has been created.`));
+
+                resolve();
+            });
         });
     }
 
