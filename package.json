@@ -1,6 +1,6 @@
 {
   "name": "comfy-code",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A simple framework for generating and running comfy graphs from typescript.",
   "type": "module",
   "main": "dist/index.js",

@@ -13126,6 +13126,19 @@ async function run_import_nodes(options) {
   console.log(`Output path: ${output_path}`);
   const comfy = new ComfyInterface(`${URL}:${PORT}`);
   const res = await comfy.getNodeTypes();
+  if (!import_fs2.default.existsSync(output_path)) {
+    const rl = import_readline2.default.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(warning2(`Directory "${output_path}" does not exist. Would you like to create it? (Y/n)`), (answer) => {
+      rl.close();
+      if (answer.toLowerCase() === "n")
+        process.exit();
+      import_fs2.default.mkdirSync(output_path);
+      console.log(success2(`Directory "${output_path}" has been created.`));
+    });
+  }
   async function generate_real_index(dirPath, relativePath = "") {
     const result = /* @__PURE__ */ new Map();
     const entries = await import_fs2.default.promises.readdir(dirPath, { withFileTypes: true });
@@ -13167,11 +13180,11 @@ async function run_import_nodes(options) {
         // if any and all files should be overridden, just delete them and recreate them later
         !override && real_old_hash !== expected_hash
       ) {
-        const rl = import_readline2.default.createInterface({
-          input: process.stdin,
-          output: process.stdout
-        });
         await new Promise((resolve, reject) => {
+          const rl = import_readline2.default.createInterface({
+            input: process.stdin,
+            output: process.stdout
+          });
           rl.question(warning2(`File "${expected_file}" was manually changed since the last import. Should this importer delete or override it? (Y/n/y!)`), (answer) => {
             rl.close();
             if (answer.toLowerCase() === "y!") {
@@ -13206,7 +13219,6 @@ async function run_import_nodes(options) {
     let full_path = get_node_path(output_path, v);
     let relative_path = import_path2.default.relative(output_path, full_path);
     if (locked_files.has(full_path)) {
-      console.log("Old Hash is ", stored_old_index.get(relative_path));
       new_index.set(
         relative_path,
         stored_old_index.get(relative_path)
@@ -13522,7 +13534,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.3";
+var version = "1.0.5";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);

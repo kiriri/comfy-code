@@ -19,6 +19,8 @@ export const import_nodes_command = new Command('nodes')
 
 export async function run_import_nodes(options)
 {
+
+
     console.log(unimportant(JSON.stringify(options, undefined, 2)));
 
     const PORT = options.port;
@@ -32,6 +34,24 @@ export async function run_import_nodes(options)
 
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
     const res = await comfy.getNodeTypes();
+
+    if (!fs.existsSync(output_path))
+    {
+        const rl = ReadLine.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        rl.question(warning(`Directory "${output_path}" does not exist. Would you like to create it? (Y/n)`), (answer) =>
+        {
+            rl.close();
+
+            if (answer.toLowerCase() === "n")
+                process.exit();
+
+            fs.mkdirSync(output_path);
+            console.log(success(`Directory "${output_path}" has been created.`));
+        });
+    }
 
 
 
@@ -108,7 +128,7 @@ export async function run_import_nodes(options)
             const real_old_hash = real_current_index.get(expected_file);
 
             // "NULL" means it no longer exists.
-            if( real_old_hash == "NULL" )
+            if (real_old_hash == "NULL")
             {
                 continue;
             }
@@ -122,13 +142,14 @@ export async function run_import_nodes(options)
             {
 
 
-                const rl = ReadLine.createInterface({
-                    input: process.stdin,
-                    output: process.stdout
-                });
+
 
                 await new Promise<void>((resolve, reject) =>
                 {
+                    const rl = ReadLine.createInterface({
+                        input: process.stdin,
+                        output: process.stdout
+                    });
                     rl.question(warning(`File "${expected_file}" was manually changed since the last import. Should this importer delete or override it? (Y/n/y!)`), (answer) =>
                     {
                         rl.close();
@@ -191,7 +212,7 @@ export async function run_import_nodes(options)
         {
             // keep the old (incorrect/modified) hash so the importer asks again the next time it is run.
             new_index.set(
-                relative_path, 
+                relative_path,
                 stored_old_index!.get(relative_path)!
             );
             continue;
