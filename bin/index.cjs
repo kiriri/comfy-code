@@ -13385,7 +13385,7 @@ async function run_import_workflow(options) {
   const all_nodes = await comfy.getNodeTypes();
   let workflow;
   if (input_path.endsWith(".json"))
-    workflow = JSON.parse(import_fs3.default.readFileSync(input_path, { encoding: "ascii" }));
+    workflow = JSON.parse(import_fs3.default.readFileSync(input_path, { encoding: "utf8" }));
   else {
     if (![".jpg", ".jpeg", ".png", ".tiff", ".webp", ".gif", ".avif", ".heic", ".heif"].includes(import_path3.default.extname(input_path).toLowerCase())) {
       console.warn("Unsupported input file format. Treating it like an exif image.");
@@ -13426,22 +13426,25 @@ async function run_import_workflow(options) {
     };
     const sorting = sort_nodes_topologically(workflow);
     const nodes = sorting.map((id) => [id, workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
+    console.log(nodes);
     if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
       return;
     let placeholders = /* @__PURE__ */ new Map();
     node_creations = nodes.map(([k, node]) => {
       const base_name = clean_key(node.class_type);
       let var_name = `${base_name}${k}`;
+      if (all_nodes[node.class_type] === void 0)
+        console.log(base_name);
       placeholders.set(k, {
         name: var_name,
-        type: all_nodes[base_name]
+        type: all_nodes[node.class_type]
       });
-      imports.add(base_name);
+      imports.add(node.class_type);
       let param_str = Object.entries(node.inputs).map(([k2, v]) => `
 	${k2}: ${get_value(v)}`).join(",");
       if (param_str.length > 0)
         param_str += "\n";
-      return `const ${var_name} = new ${node.class_type}({${param_str}});`;
+      return `const ${var_name} = new ${base_name}({${param_str}});`;
     });
   } else {
     const nodes = workflow.nodes.filter((v) => !IGNORE_NODES.has(v.type));
@@ -13470,7 +13473,7 @@ async function run_import_workflow(options) {
     nodes.forEach((node) => {
       const class_name = node.type;
       const var_name = node_vars.get(node.id);
-      imports.add(class_name);
+      imports.add(node.type);
       const params = {};
       const nodeType = all_nodes[class_name];
       let all_inputs = [...nodeType.input_order?.required ?? {}, ...nodeType.input_order?.optional ?? []];
@@ -13511,7 +13514,13 @@ async function run_import_workflow(options) {
       node_creations.push(`const ${var_name} = new ${class_name}({ ${paramStr} });`);
     });
   }
-  const import_statements = Array.from(imports).map((cls) => `import { ${cls} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0, -3)}";`).join("\n");
+  const import_statements = Array.from(imports).filter((cls) => {
+    if (all_nodes[cls] === void 0) {
+      console.warn("Couldn't find node of name ", cls);
+      return false;
+    }
+    return true;
+  }).map((cls) => `import { ${clean_key(cls)} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0, -3)}";`).join("\n");
   const result = full_workflow ? `${import_statements}
 import { ComfyInterface, ComfyNode } from "comfy-code";
 
@@ -13537,7 +13546,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.5";
+var version = "1.0.7";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);

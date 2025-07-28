@@ -44,6 +44,7 @@ export async function run_import_workflow(options)
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
     const all_nodes = await comfy.getNodeTypes();
 
+
     ///
     // Parse the workflow file
     ///
@@ -52,7 +53,7 @@ export async function run_import_workflow(options)
 
     // json workflow files MUST end in a .json extension.
     if (input_path.endsWith(".json"))
-        workflow = JSON.parse(fs.readFileSync(input_path, { encoding: "ascii" }));
+        workflow = JSON.parse(fs.readFileSync(input_path, { encoding: "utf8" }));
     // Otherwise it's presumably an image
     else
     {
@@ -111,6 +112,7 @@ export async function run_import_workflow(options)
         const sorting = sort_nodes_topologically(workflow);
 
         const nodes = sorting.map(id => [id, (workflow as JSON_Workflow_API)[id]] as const).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
+        console.log(nodes);
 
 
         if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
@@ -147,12 +149,15 @@ export async function run_import_workflow(options)
             const base_name = clean_key(node.class_type);
             let var_name = `${base_name}${k}`;
 
+            if(all_nodes[node.class_type] === undefined)
+                console.log(base_name)
+
             placeholders.set(k, {
                 name: var_name,
-                type: all_nodes[base_name]
+                type: all_nodes[node.class_type]
             });
 
-            imports.add(base_name);
+            imports.add(node.class_type);
 
             let param_str = Object.entries(node.inputs)
                 .map(([k, v]) => `\n\t${k}: ${get_value(v)}`)
@@ -161,7 +166,7 @@ export async function run_import_workflow(options)
             if (param_str.length > 0)
                 param_str += "\n";
 
-            return `const ${var_name} = new ${node.class_type}({${param_str}});`
+            return `const ${var_name} = new ${base_name}({${param_str}});`
         });
 
     }
@@ -213,7 +218,7 @@ export async function run_import_workflow(options)
         {
             const class_name = node.type;
             const var_name = node_vars.get(node.id)!;
-            imports.add(class_name);
+            imports.add(node.type);
 
             const params: Record<string, string> = {};
 
@@ -286,8 +291,15 @@ export async function run_import_workflow(options)
     }
 
     // Generate imports
-    const import_statements = Array.from(imports)
-        .map(cls => `import { ${cls} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0,-3)}";`)
+    const import_statements = Array.from(imports).filter(cls=>{
+        if(all_nodes[cls] === undefined)
+        {
+            console.warn("Couldn't find node of name ", cls);
+            return false
+        }
+        return true;
+    })
+        .map(cls => `import { ${clean_key(cls)} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0,-3)}";`)
         .join('\n');
 
 
