@@ -9,7 +9,7 @@ const error = chalk.hex("#f00").bgWhite;
 const warning = chalk.hex("#fa0");
 const success = chalk.hex("#0b0").bgBlack;
 
-const DEBUG = false;
+const DEBUG = true;
 
 
 
@@ -57,6 +57,9 @@ export class ComfyWebsocketInstance
         {
             if (DEBUG)
                 console.log('Message from server: ', event.data);
+
+            if(event.data instanceof Blob)
+                return; // We currently cannot handle Blob data. No idea what it's for.
 
             const data = JSON.parse(event.data);
 

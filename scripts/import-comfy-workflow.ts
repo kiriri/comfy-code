@@ -108,6 +108,7 @@ export async function run_import_workflow(options)
     // Is it an api workflow?
     if (!('version' in workflow))
     {
+        console.log("Doing 1");
         // Sort the nodes such that no node is created before all the nodes it depends on were created.
         const sorting = sort_nodes_topologically(workflow);
 

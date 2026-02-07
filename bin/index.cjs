@@ -12594,7 +12594,7 @@ var unimportant = source_default.hex("#888");
 var error = source_default.hex("#f00").bgWhite;
 var warning = source_default.hex("#fa0");
 var success = source_default.hex("#0b0").bgBlack;
-var DEBUG = false;
+var DEBUG = true;
 var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
   socket;
   events;
@@ -12616,6 +12616,8 @@ var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
     socket.addEventListener("message", (event) => {
       if (DEBUG)
         console.log("Message from server: ", event.data);
+      if (event.data instanceof Blob)
+        return;
       const data = JSON.parse(event.data);
       result.events.emit("message", data);
       result.events.emit(data.type, data.data);
@@ -13424,6 +13426,7 @@ async function run_import_workflow(options) {
       let target_name = target?.name;
       return `${target_name}.outputs.${socket_name}`;
     };
+    console.log("Doing 1");
     const sorting = sort_nodes_topologically(workflow);
     const nodes = sorting.map((id) => [id, workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
     console.log(nodes);
@@ -13546,7 +13549,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.7";
+var version = "1.0.8";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);
