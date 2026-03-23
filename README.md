@@ -101,7 +101,7 @@ Now all that's left is to run the script, which I use `ts-node` for.
 If you do not have ts-node installed globally, install it locally  
 
 ```bash
-npm i -D ts-node
+npm i -D ts-node typescript
 ```  
 
 Then run the script:  

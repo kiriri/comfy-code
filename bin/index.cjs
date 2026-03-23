@@ -13421,20 +13421,21 @@ async function run_import_workflow(options) {
     let get_value = function(v) {
       if (!Array.isArray(v))
         return JSON.stringify(v);
-      let target = placeholders.get(v[0]);
+      let target = placeholders.get(v[0].replaceAll(":", "_"));
       let socket_name = target?.type.output_name[v[1]];
       let target_name = target?.name;
       return `${target_name}.outputs.${socket_name}`;
     };
     console.log("Doing 1");
     const sorting = sort_nodes_topologically(workflow);
-    const nodes = sorting.map((id) => [id, workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
+    const nodes = sorting.map((id) => [id.replaceAll(":", "_"), workflow[id]]).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
     console.log(nodes);
     if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
       return;
     let placeholders = /* @__PURE__ */ new Map();
     node_creations = nodes.map(([k, node]) => {
       const base_name = clean_key(node.class_type);
+      console.log("Creating ", base_name, k);
       let var_name = `${base_name}${k}`;
       if (all_nodes[node.class_type] === void 0)
         console.log(base_name);
@@ -13549,7 +13550,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.8";
+var version = "1.0.9";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);

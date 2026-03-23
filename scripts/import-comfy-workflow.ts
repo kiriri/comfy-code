@@ -112,7 +112,7 @@ export async function run_import_workflow(options)
         // Sort the nodes such that no node is created before all the nodes it depends on were created.
         const sorting = sort_nodes_topologically(workflow);
 
-        const nodes = sorting.map(id => [id, (workflow as JSON_Workflow_API)[id]] as const).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
+        const nodes = sorting.map(id => [id.replaceAll(":","_"), (workflow as JSON_Workflow_API)[id]] as const).filter(([k, v]) => !IGNORE_NODES.has(v.class_type));
         console.log(nodes);
 
 
@@ -135,7 +135,7 @@ export async function run_import_workflow(options)
             if (!Array.isArray(v))
                 return JSON.stringify(v)
 
-            let target = placeholders.get(v[0]);
+            let target = placeholders.get(v[0].replaceAll(":","_"));
 
             let socket_name = target?.type.output_name[v[1]];
             let target_name = target?.name;
@@ -148,6 +148,7 @@ export async function run_import_workflow(options)
         {
             // Generate variable name
             const base_name = clean_key(node.class_type);
+            console.log("Creating ", base_name, k)
             let var_name = `${base_name}${k}`;
 
             if(all_nodes[node.class_type] === undefined)
