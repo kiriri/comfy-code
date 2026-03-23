@@ -9,7 +9,7 @@ const error = chalk.hex("#f00").bgWhite;
 const warning = chalk.hex("#fa0");
 const success = chalk.hex("#0b0").bgBlack;
 
-const DEBUG = true;
+const DEBUG = false;
 
 
 

@@ -20,6 +20,11 @@
 Generated comfy graphs work in both the Browser and Node environments.  
 However, setting up a project requires node version 23 or newer!  
 
+## Premade Starter Project
+
+See the [examples/example-project](examples/example-project) directory in this repo for a project which should work out of the box if you follow the README.md file in it. This is the best way to get started.
+
+## From scratch:
 
 `npm i comfy-code`  
 
@@ -34,8 +39,6 @@ This should have created an `imports` folder in your current directory, which co
 
 By default comfy-code will expect your server to run on `http://127.0.0.1:8188`.  
 If you use different settings, check `npx comfy-code import nodes --help` for options.
-
-
 
 ## Writing your first graph
 
@@ -57,8 +60,10 @@ const loadCheckpoint = new CheckpointLoaderSimple({ ckpt_name:'checkpoint-name' 
 
 Your IDE should give you the ability to auto import the CheckpointLoaderSimple node from your imports folder. Otherwise you must do so manually like  
 ```typescript
-import { CheckpointLoaderSimple } from "/imports/loaders/CheckpointLoaderSimple";
+import { CheckpointLoaderSimple } from "/imports/loaders/CheckpointLoaderSimple.ts";
 ```
+
+If you're running this script in node, each import must end in ".ts". If you want to run it in the browser, it **mustn't** end in ".ts".
 
 If everything works correctly, ckpt_name should have intellisense which reflects your currently installed models.  
 When you create a Node like that, the arguments represent the incoming connections into that node. They can either be primitive values (such as a string or a number) or references to outputs of other nodes.  
@@ -101,10 +106,34 @@ Now all that's left is to run the script, which I use `ts-node` for.
 If you do not have ts-node installed globally, install it locally  
 
 ```bash
-npm i -D ts-node typescript
+npm i -D ts-node typescript @types/node
 ```  
 
-Then run the script:  
+In your package.json, make sure to use `"type": "module"`, add it if it doesn't exist already, it belongs at the lowest level of the json object, right next to the name, version etc.
+
+Then create a `tsconfig.json` file next to your `package.json` file.
+
+#### tsconfig.json (for nodejs)
+```json
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "target": "esnext",
+    "allowImportingTsExtensions": true,
+    "lib": ["esnext"],
+    "types": ["node"],
+    "noEmit": true,
+    "verbatimModuleSyntax": false,
+
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "skipLibCheck": true,
+  }
+}
+```
+
+Then run the script. The following command expects you to have moved one of the example script into your local `src` directory, and that you renamed it to `test.ts`:  
 ```bash
 npx ts-node ./src/test.ts
 ```

@@ -16,6 +16,7 @@ export const import_workflow_command = new Command('workflow')
     .option('-u, --url <string>', 'Server URL', 'http://127.0.0.1')
     .option('-o, --output <path>', 'Output file path', './workflows/workflow.ts')
     .option('-m, --imports <path>', 'Import path (Relative to the workflow file)', './imports/')
+    .option('-e, --extension <path>', 'Import File Extension (Node needs .ts or .js, browser needs \'\')', '.ts')
     .option('-f, --full', 'Full template, such that running the resulting file runs the workflow.', false)
     .option('-y, --override', 'Override any existing file without asking.', false)
     .action(run_import_workflow);
@@ -29,6 +30,7 @@ export async function run_import_workflow(options)
     const output_path: string = options.output;
     const input_path: string = options.input;
     const imports_path: string = options.imports;
+    const import_file_extension: string = options.extension;
     const full_workflow: boolean = options.full;
     const override: boolean = options.override;
 
@@ -118,6 +120,8 @@ export async function run_import_workflow(options)
 
         if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
             return;
+
+        ensure_directory(path.dirname(output_path));
 
         // Create placeholder objects for each node.
         // This helps us get type info so we can resolve the name of the
@@ -301,7 +305,7 @@ export async function run_import_workflow(options)
         }
         return true;
     })
-        .map(cls => `import { ${clean_key(cls)} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0,-3)}";`)
+        .map(cls => `import { ${clean_key(cls)} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0,-3) + import_file_extension}";`)
         .join('\n');
 
 
@@ -322,7 +326,6 @@ comfy.executePrompt(activeGroup, "print").then(comfy.quit.bind(comfy));`
     console.log();
     console.log(result);
     console.log();
-
 
     if (!override)
     {

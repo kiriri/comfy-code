@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "target": "esnext",
+    "allowImportingTsExtensions": true,
+    "lib": ["esnext"],
+    "types": ["node"],
+    "noEmit": true,
+    "verbatimModuleSyntax": false,
+
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "skipLibCheck": true,
+  }
+}

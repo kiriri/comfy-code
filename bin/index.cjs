@@ -12594,7 +12594,7 @@ var unimportant = source_default.hex("#888");
 var error = source_default.hex("#f00").bgWhite;
 var warning = source_default.hex("#fa0");
 var success = source_default.hex("#0b0").bgBlack;
-var DEBUG = true;
+var DEBUG = false;
 var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
   socket;
   events;
@@ -13366,7 +13366,7 @@ var import_fs3 = __toESM(require("fs"), 1);
 var import_path3 = __toESM(require("path"), 1);
 var import_exifreader = __toESM(require_exif_reader(), 1);
 var import_console2 = require("console");
-var import_workflow_command = new Command("workflow").description("Extract a prompt graph from a json file or an (animated) image and then save the graph in the form of a comfy-code typescript script.\nUseful for quick prototyping.\n").requiredOption("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "./imports/").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).action(run_import_workflow);
+var import_workflow_command = new Command("workflow").description("Extract a prompt graph from a json file or an (animated) image and then save the graph in the form of a comfy-code typescript script.\nUseful for quick prototyping.\n").requiredOption("-i, --input <path>", "Workflow file path").option("-p, --port <number>", "Port number", "8188").option("-u, --url <string>", "Server URL", "http://127.0.0.1").option("-o, --output <path>", "Output file path", "./workflows/workflow.ts").option("-m, --imports <path>", "Import path (Relative to the workflow file)", "./imports/").option("-e, --extension <path>", "Import File Extension (Node needs .ts or .js, browser needs '')", ".ts").option("-f, --full", "Full template, such that running the resulting file runs the workflow.", false).option("-y, --override", "Override any existing file without asking.", false).action(run_import_workflow);
 async function run_import_workflow(options) {
   console.log(unimportant2(JSON.stringify(options, void 0, 2)));
   const PORT = Number.parseInt(options.port);
@@ -13374,6 +13374,7 @@ async function run_import_workflow(options) {
   const output_path = options.output;
   const input_path = options.input;
   const imports_path = options.imports;
+  const import_file_extension = options.extension;
   const full_workflow = options.full;
   const override = options.override;
   const relative_import_path = import_path3.default.relative(import_path3.default.dirname(output_path), imports_path);
@@ -13432,6 +13433,7 @@ async function run_import_workflow(options) {
     console.log(nodes);
     if (!check_if_nodes_installed(nodes.map(([k, v]) => v.class_type)))
       return;
+    ensure_directory(import_path3.default.dirname(output_path));
     let placeholders = /* @__PURE__ */ new Map();
     node_creations = nodes.map(([k, node]) => {
       const base_name = clean_key(node.class_type);
@@ -13524,7 +13526,7 @@ async function run_import_workflow(options) {
       return false;
     }
     return true;
-  }).map((cls) => `import { ${clean_key(cls)} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0, -3)}";`).join("\n");
+  }).map((cls) => `import { ${clean_key(cls)} } from "${get_node_path(relative_import_path, all_nodes[cls]).slice(0, -3) + import_file_extension}";`).join("\n");
   const result = full_workflow ? `${import_statements}
 import { ComfyInterface, ComfyNode } from "comfy-code";
 
@@ -13550,7 +13552,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.9";
+var version = "1.0.10";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);
