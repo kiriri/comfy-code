@@ -14,17 +14,26 @@ const DEBUG = false;
 
 
 type ComfyWebsocketEvents =
+    {
+        message: [JSON_WS_Status | JSON_WS_Progress];
+        status: [JSON_WS_Status];
+        progress: [JSON_WS_Progress];
+    }
+
+const finalizer = new FinalizationRegistry((v: () => any) =>
 {
-    message: [JSON_WS_Status | JSON_WS_Progress];
-    status: [JSON_WS_Status];
-    progress: [JSON_WS_Progress];
-}
+    if(!v["done"])
+    {
+        console.log("Automatically destroyed an orphaned ComfyInterface.");
+        v();
+    }
+})
 
 export class ComfyWebsocketInstance
 {
     readonly socket: WebSocket;
 
-    events :  EventEmitter<ComfyWebsocketEvents>;
+    events: EventEmitter<ComfyWebsocketEvents>;
 
     private constructor(socket: WebSocket)
     {
@@ -58,7 +67,7 @@ export class ComfyWebsocketInstance
             if (DEBUG)
                 console.log('Message from server: ', event.data);
 
-            if(event.data instanceof Blob)
+            if (event.data instanceof Blob)
                 return; // We currently cannot handle Blob data. No idea what it's for.
 
             const data = JSON.parse(event.data);
@@ -100,6 +109,8 @@ export class ComfyInterface
             url = url.slice(0, url.length - 1);
         }
         this.url = url;
+
+        finalizer.register(this, this.quit)
     }
 
     /**
@@ -231,14 +242,14 @@ export class ComfyInterface
     }
 
 
-    remoteCache: Record<string,any[]>
+    remoteCache: Record<string, any[]>
     /**
      * Get Remote. Remotes are special data provider paths, returning for example a list of allowed enum values.
      * ComfyCode caches remotes.
      */
-    async getRemote(route:string): Promise<any[]>
+    async getRemote(route: string): Promise<any[]>
     {
-        if(route in this.remoteCache)
+        if (route in this.remoteCache)
             return this.remoteCache[route];
 
         let json = await this.getJson(route);
@@ -260,23 +271,23 @@ export class ComfyInterface
      * Returns all nodes which the input nodes require to work, including themselves.
      * @param nodes 
      */
-    _resolveDependencies(nodes:ComfyNode[]):ComfyNode[]
+    _resolveDependencies(nodes: ComfyNode[]): ComfyNode[]
     {
         let result = new Set<ComfyNode>([...nodes]);
         let frontier = [...nodes];
 
-        let node : ComfyNode;
-        while(node = frontier.pop())
+        let node: ComfyNode;
+        while (node = frontier.pop())
         {
-            for(const key in node.inputs)
+            for (const key in node.inputs)
             {
                 const input = node.inputs[key];
 
-                if(input.target)
+                if (input.target)
                 {
                     const targetNode = input.target.node;
 
-                    if(!result.has(targetNode))
+                    if (!result.has(targetNode))
                     {
                         frontier.push(targetNode);
                         result.add(targetNode);
@@ -303,7 +314,7 @@ export class ComfyInterface
      * @param prompt The prompt data to execute.
      * @param wait Wait until the prompt is done.
      */
-    async executePrompt(nodes: ComfyNode[], wait : boolean | 'print' = false): Promise<JSON_PromptReturn>
+    async executePrompt(nodes: ComfyNode[], wait: boolean | 'print' = false): Promise<JSON_PromptReturn>
     {
 
 
@@ -316,9 +327,9 @@ export class ComfyInterface
 
             let result = await this.postJson('/prompt', { prompt: this._generateJsonPrompt(nodes) }) as JSON_PromptReturn;
 
-            if(result.error)
+            if (result.error)
             {
-                console.log(error(`${result.error.type}: ${result.error.message} (${result.error.details}).`) )
+                console.log(error(`${result.error.type}: ${result.error.message} (${result.error.details}).`))
 
                 return result;
             }
@@ -336,11 +347,11 @@ export class ComfyInterface
 
                 if (result.prompt_id === data.prompt_id)
                 {
-                    if(wait === 'print')
+                    if (wait === 'print')
                     {
                         const progress = data.value / data.max;
-                        console.log(unimportant(`${(progress * 100).toFixed(2)}% - ${data.value} / ${data.max}`) )
-                    } 
+                        console.log(unimportant(`${(progress * 100).toFixed(2)}% - ${data.value} / ${data.max}`))
+                    }
                 }
             }
 
@@ -351,12 +362,12 @@ export class ComfyInterface
                 // comfy will instantly return the cache of.
                 let hist = await self.getHistoryItem(result.prompt_id)
 
-                if(DEBUG)
+                if (DEBUG)
                 {
                     console.log("History is ");
                     console.log(hist);
                 }
-                
+
                 if (hist?.status.completed)
                 {
                     unsubscribe();
@@ -369,7 +380,7 @@ export class ComfyInterface
 
             await promise;
 
-            if(wait === 'print')
+            if (wait === 'print')
                 console.log(success(`Prompt Finished (${result.prompt_id})`))
 
             return result;
@@ -472,12 +483,13 @@ export class ComfyInterface
      * If you forget to call quit(), and you use websockets,
      * then the program won't close by itself until this is called.
      */
-    quit()
+    quit = () =>
     {
-        if(this._ws)
+        if (this._ws)
         {
             this._ws.socket.close();
             this._ws = undefined;
+            this.quit["done"] = true;
         }
     }
 }

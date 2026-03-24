@@ -12595,6 +12595,12 @@ var error = source_default.hex("#f00").bgWhite;
 var warning = source_default.hex("#fa0");
 var success = source_default.hex("#0b0").bgBlack;
 var DEBUG = false;
+var finalizer = new FinalizationRegistry((v) => {
+  if (!v["done"]) {
+    console.log("Automatically destroyed an orphaned ComfyInterface.");
+    v();
+  }
+});
 var ComfyWebsocketInstance = class _ComfyWebsocketInstance {
   socket;
   events;
@@ -12641,6 +12647,7 @@ var ComfyInterface = class {
       url = url.slice(0, url.length - 1);
     }
     this.url = url;
+    finalizer.register(this, this.quit);
   }
   /**
    * Create a Websocket connection to Comfy UI.
@@ -12906,12 +12913,13 @@ var ComfyInterface = class {
    * If you forget to call quit(), and you use websockets,
    * then the program won't close by itself until this is called.
    */
-  quit() {
+  quit = () => {
     if (this._ws) {
       this._ws.socket.close();
       this._ws = void 0;
+      this.quit["done"] = true;
     }
-  }
+  };
 };
 
 // scripts/shared.ts
@@ -13609,7 +13617,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.12";
+var version = "1.0.13";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);
