@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "scripts": {
-  },
+  "scripts": {},
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -15,6 +14,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "comfy-code": "^1.0.10"
+    "comfy-code": "^1.0.11"
   }
 }

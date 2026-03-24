@@ -12744,6 +12744,18 @@ var ComfyInterface = class {
   async getQueue() {
     return this.getJson("/queue");
   }
+  remoteCache;
+  /**
+   * Get Remote. Remotes are special data provider paths, returning for example a list of allowed enum values.
+   * ComfyCode caches remotes.
+   */
+  async getRemote(route) {
+    if (route in this.remoteCache)
+      return this.remoteCache[route];
+    let json = await this.getJson(route);
+    this.remoteCache[route] = json;
+    return json;
+  }
   /**
    * Get system statistics
    */
@@ -13127,7 +13139,7 @@ async function run_import_nodes(options) {
   console.log(`Port: ${PORT}`);
   console.log(`Output path: ${output_path}`);
   const comfy = new ComfyInterface(`${URL}:${PORT}`);
-  const res = await comfy.getNodeTypes();
+  const node_types = await comfy.getNodeTypes();
   if (!import_fs2.default.existsSync(output_path)) {
     const rl = import_readline2.default.createInterface({
       input: process.stdin,
@@ -13218,8 +13230,8 @@ async function run_import_nodes(options) {
     }
   }
   const new_index = /* @__PURE__ */ new Map();
-  for (let key in res) {
-    const v = res[key];
+  for (let key in node_types) {
+    const v = node_types[key];
     const clean_key2 = clean_key(key);
     let full_path = get_node_path(output_path, v);
     let relative_path = import_path2.default.relative(output_path, full_path);
@@ -13241,18 +13253,21 @@ async function run_import_nodes(options) {
       ...Object.entries(v.input.required ?? {}).map((v2) => [...v2, true]),
       ...Object.entries(v.input.optional ?? {}).map((v2) => [...v2, false])
     ].map(([k, opts, required]) => {
+      console.log(k, opts);
       if (typeof opts === "string") {
         return {
           name: k,
           type: opts,
-          required
+          required,
+          description: ""
         };
       } else if (Array.isArray(opts)) {
         if (opts.length === 0) {
           return {
             name: k,
             type: k,
-            required
+            required,
+            description: ""
           };
         }
         const is_enum = Array.isArray(opts[0]);
@@ -13260,7 +13275,8 @@ async function run_import_nodes(options) {
           return {
             name: k,
             type: opts[0],
-            required: is_enum ? false : required
+            required: is_enum ? false : required,
+            description: ""
           };
         }
         if (opts.length > 1) {
@@ -13268,11 +13284,11 @@ async function run_import_nodes(options) {
             name: k,
             type: opts[0],
             ...opts[1],
-            required: is_enum ? false : "default" in opts[1] ? false : required
+            required: is_enum ? false : "default" in opts[1] ? false : required,
+            description: opts[1].tooltip ?? ""
           };
         }
       }
-      console.log(opts);
       throw new Error("wtf");
     });
     try {
@@ -13284,22 +13300,45 @@ async function run_import_nodes(options) {
           type = x.type.map((x2) => "'" + x2.replace("'", "\\'") + "'").join(" | ");
         }
         return type;
-      }, input_to_type = function(x) {
+      }, generateJSDoc = function(x) {
+        let description = x.description;
+        let def = "default" in x ? "\n @default " + JSON.stringify(x.default) : "";
+        let min = "min" in x ? "\n @min " + JSON.stringify(x.min) : "";
+        let max = "max" in x ? "\n @max " + JSON.stringify(x.max) : "";
+        let step = "step" in x ? "\n @step " + JSON.stringify(x.step) : "";
+        return ("/**\n " + description + def + min + max + step + "*/").replaceAll("\n", "\n *");
+      };
+      async function input_to_type(x) {
         let _type = x.type;
         let type;
         if (typeof _type === "string") {
           if (_type === "TEXT" || _type === "STRING")
             type = "string";
-          else if (_type === "BOOLEAN")
+          else if (_type === "COMBO") {
+            console.log(x, "and remote is", x.remote);
+            if ("options" in x) {
+              type = x["options"].map((_type2) => typeof _type2 === "string" ? `'${_type2.replace("'", "\\'")}'` : _type2).join(" | ");
+            } else if ("remote" in x) {
+              try {
+                let query = await comfy.getRemote(x.remote.route) ?? [];
+                type = query.map((_type2) => typeof _type2 === "string" ? `'${_type2.replace("'", "\\'")}'` : _type2).join(" | ");
+              } catch (e) {
+                type = "any";
+              }
+            }
+            if (x["mutliselect"]) {
+              type = `(${type})[]`;
+            }
+          } else if (_type === "BOOLEAN")
             type = "boolean";
-          else if (_type === "NUMBER" || _type === "INTEGER" || _type === "FLOAT" || _type === "INT")
+          else if (_type === "NUMBER" || _type === "INTEGER" || _type === "FLOAT" || _type === "INT") {
             type = "number";
-          else
+          } else
             type = "'" + _type.replace("'", "\\'") + "'";
         } else {
           if (_type.length === 0) {
             type = "any";
-          } else
+          } else {
             type = _type.map((x2) => {
               if (typeof x2 === "string") {
                 if (x2 === "TEXT" || x2 === "STRING")
@@ -13310,15 +13349,35 @@ async function run_import_nodes(options) {
               else
                 return "any";
             }).join(" | ");
+          }
         }
         return type;
-      };
+      }
       const outputs_str = outputs.length > 0 ? `Object.fromEntries(this._outputs.map((x, i) => [x.label, x])) as {
         ${outputs.map((x) => x.label + ": ComfyOutput<" + output_to_type(x) + ">").join(",\n")}
     }` : `{}`;
+      const _inputs = await Promise.all(
+        inputs.map(
+          async (x, i) => {
+            const type = await input_to_type(x);
+            return `new ComfyInput<${type}>(this, ${i}, "${x.name.replace("'", "\\'")}" ${"default" in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
+          }
+        )
+      );
+      const input_type = `export interface ${clean_key2}Args {
+${(await Promise.all(
+        inputs.map(
+          async (x) => `${generateJSDoc(x)}
+"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + await input_to_type(x) + "> | " + await input_to_type(x)
+        )
+      )).join(",\n")}
+}`;
       const full_output = `
 import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';            
             
+${input_type}
+
+${generateJSDoc(v)}
 export class ${clean_key2} extends ComfyNode
 {
     classType = '${key.replace("'", "\\'")}';
@@ -13332,16 +13391,14 @@ export class ${clean_key2} extends ComfyNode
     outputs = ${outputs_str};
 
     _inputs = [
-    ${inputs.map((x, i) => {
-        return `new ComfyInput<${input_to_type(x)}>(this, ${i}, "${x.name.replace("'", "\\'")}" ${"default" in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
-      }).join(",\n")}
+    ${_inputs.join(",\n")}
     ] as const;
 
     inputs = Object.fromEntries(this._inputs.map((x, i) => [x.label, x])) as {
-        ${inputs.map((x) => `"${x.name}": ComfyInput<` + input_to_type(x) + ">").join(",\n")}
+        ${(await Promise.all(inputs.map(async (x) => `"${x.name}": ComfyInput<` + await input_to_type(x) + ">"))).join(",\n")}
     };
     
-    constructor(initial_values?: {${inputs.map((x) => `"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + input_to_type(x) + "> | " + input_to_type(x)).join(",\n")}})
+    constructor(initial_values?: ${clean_key2}Args)
     {
         super();
         this.initialize(initial_values);
@@ -13357,7 +13414,7 @@ export class ${clean_key2} extends ComfyNode
       throw e;
     }
   }
-  console.log(success2(`Created all ${Object.keys(res).length} classes.`));
+  console.log(success2(`Created all ${Object.keys(node_types).length} classes.`));
   import_fs2.default.writeFileSync(import_path2.default.join(output_path, "index.json"), JSON.stringify(Object.fromEntries(new_index.entries())));
 }
 
@@ -13552,7 +13609,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.10";
+var version = "1.0.11";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);

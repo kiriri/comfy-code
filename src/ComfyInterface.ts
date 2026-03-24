@@ -230,6 +230,24 @@ export class ComfyInterface
         return this.getJson('/queue');
     }
 
+
+    remoteCache: Record<string,any[]>
+    /**
+     * Get Remote. Remotes are special data provider paths, returning for example a list of allowed enum values.
+     * ComfyCode caches remotes.
+     */
+    async getRemote(route:string): Promise<any[]>
+    {
+        if(route in this.remoteCache)
+            return this.remoteCache[route];
+
+        let json = await this.getJson(route);
+
+        this.remoteCache[route] = json;
+
+        return json;
+    }
+
     /**
      * Get system statistics
      */

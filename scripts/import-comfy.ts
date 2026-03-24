@@ -17,9 +17,11 @@ export const import_nodes_command = new Command('nodes')
     .option('-y, --override', 'Override all existing files imported files.', false)
     .action(run_import_nodes);
 
+
+
 export async function run_import_nodes(options)
 {
-    
+
 
     console.log(unimportant(JSON.stringify(options, undefined, 2)));
 
@@ -33,7 +35,7 @@ export async function run_import_nodes(options)
     console.log(`Output path: ${output_path}`);
 
     const comfy = new ComfyInterface(`${URL}:${PORT}`);
-    const res = await comfy.getNodeTypes();
+    const node_types = await comfy.getNodeTypes();
 
     if (!fs.existsSync(output_path))
     {
@@ -47,7 +49,7 @@ export async function run_import_nodes(options)
             {
                 rl.close();
 
-                if(answer.toLowerCase() === "n")
+                if (answer.toLowerCase() === "n")
                     process.exit();
 
                 fs.mkdirSync(output_path);
@@ -203,9 +205,10 @@ export async function run_import_nodes(options)
 
     const new_index = new Map<string, string>(); // hash index.
 
-    for (let key in res)
+    // Iterate all node types
+    for (let key in node_types)
     {
-        const v = res[key];
+        const v = node_types[key];
 
         const clean_key = get_clean_key(key);
 
@@ -239,37 +242,45 @@ export async function run_import_nodes(options)
                 ...Object.entries(v.input.optional ?? {}).map(v => [...v, false])
             ]).map(([k, opts, required]) =>
             {
+                console.log(k, opts);
+                // Has no type name -> socket name === type
                 if (typeof opts === "string")
                 {
                     return {
                         name: k as string,
                         type: opts,
-                        required
+                        required,
+                        description: ""
                     }
                 }
 
                 else if (Array.isArray(opts))
                 {
+                    // Has no type name -> socket name === type
                     if (opts.length === 0)
                     {
                         return {
                             name: k as string,
                             type: k as string,
-                            required
+                            required,
+                            description: ""
                         }
                     }
 
                     const is_enum = Array.isArray(opts[0]);
 
+                    // Has just type name
                     if (opts.length === 1)
                     {
                         return {
                             name: k as string,
                             type: opts[0],
-                            required: is_enum ? false : required
+                            required: is_enum ? false : required,
+                            description: ""
                         }
                     }
 
+                    // has type name + options
                     if (opts.length > 1)
                     {
                         return {
@@ -277,11 +288,11 @@ export async function run_import_nodes(options)
                             type: opts[0],
                             ...opts[1],
                             required: is_enum ? false : ("default" in opts[1] ? false : required),
+                            description: opts[1].tooltip ?? ""
                         }
                     }
                 }
 
-                console.log(opts);
                 throw new Error("wtf");
             });
 
@@ -303,31 +314,59 @@ export async function run_import_nodes(options)
                 return type;
             }
 
-            function input_to_type(x: typeof inputs[number])
+            async function input_to_type(x: typeof inputs[number])
             {
                 let _type = x.type;
 
                 let type: string;
+                // If type is a string, then x may contain have special options.
                 if (typeof _type === "string")
                 {
                     if (_type === "TEXT" || _type === "STRING")
                         type = "string";
+                    else if (_type === "COMBO")
+                    {
+                        console.log(x, "and remote is", x.remote);
+                        if ("options" in x)
+                        {
+                            type = x["options"].map(_type => typeof _type === "string" ? `'${_type.replace("\'", "\\\'")}'` : _type).join(" | ")
+                        }
+                        else if ("remote" in x)
+                        {
+                            try
+                            {
+                                let query = await comfy.getRemote(x.remote.route) ?? [];
+                                type = query.map(_type => typeof _type === "string" ? `'${_type.replace("\'", "\\\'")}'` : _type).join(" | ")
+                            }
+                            catch (e)
+                            {
+                                type = 'any';
+                            }
+                        }
+
+                        if (x["mutliselect"])
+                        {
+                            type = `(${type})[]`; // make it an array.
+                        }
+                    }
                     else if (_type === "BOOLEAN")
                         type = "boolean";
                     else if (_type === "NUMBER" || _type === "INTEGER" || _type === "FLOAT" || _type === "INT")
+                    {
                         type = "number";
+                    }
                     else
                         type = "'" + _type.replace("\'", "\\\'") + "'";
                 }
-                // It's an enum array
+                // It's an enum array (ie multiple very specific types), it is optionless
                 else
                 {
-
                     if (_type.length === 0)
                     {
                         type = "any";
                     }
                     else
+                    {
                         type = _type.map(x =>
                         {
                             if (typeof x === "string")
@@ -341,18 +380,60 @@ export async function run_import_nodes(options)
                             else
                                 return "any";
                         }).join(" | ");
+                    }
 
                 }
                 return type;
+            }
+
+            function generateJSDoc(x: {description:string})
+            {
+                let description = x.description;
+                let def = ("default" in x ? "\n @default " + JSON.stringify(x.default) : "")
+                let min = ("min" in x ? "\n @min " + JSON.stringify(x.min) : "")
+                let max = ("max" in x ? "\n @max " + JSON.stringify(x.max) : "")
+                let step = ("step" in x ? "\n @step " + JSON.stringify(x.step) : "")
+
+                return ("/**\n " + description + def + min + max + step + "*/").replaceAll("\n", "\n *")
             }
 
             const outputs_str = outputs.length > 0 ? `Object.fromEntries(this._outputs.map((x, i) => [x.label, x])) as {
         ${outputs.map(x => x.label + ": ComfyOutput<" + output_to_type(x) + ">").join(",\n")}
     }` : `{}`;
 
+
+    // Inputs array field. Stores the input sockets internally.
+            const _inputs = (
+                await Promise.all(
+                    inputs.map(
+                        async (x, i) =>
+                        {
+                            const type = await input_to_type(x);
+                            return `new ComfyInput<${type}>(this, ${i}, "${(x.name as string).replace("\'", "\\\'")}" ${'default' in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
+                        }
+                    )
+                )
+            )
+
+/**
+ * Type + description for the constructor input object
+ */
+const input_type = `export interface ${clean_key}Args {
+${(
+    await Promise.all(
+        inputs.map(
+            async x => `${generateJSDoc(x)}\n"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + (await input_to_type(x)) + "> | " + (await input_to_type(x))
+        )
+    )
+).join(",\n")}
+}`
+
             const full_output = `
 import { ComfyNode, ComfyOutput, ComfyInput } from 'comfy-code';            
             
+${input_type}
+
+${generateJSDoc(v)}
 export class ${clean_key} extends ComfyNode
 {
     classType = '${key.replace("\'", "\\\'")}';
@@ -360,8 +441,6 @@ export class ${clean_key} extends ComfyNode
     _outputs = [
     ${outputs.map((x, i) =>
             {
-
-
                 return `new ComfyOutput<${output_to_type(x)}>(this, ${i}, "${x.label.replace("\'", "\\\'")}")`;
             }).join(',\n')}
     ] as const;
@@ -369,17 +448,14 @@ export class ${clean_key} extends ComfyNode
     outputs = ${outputs_str};
 
     _inputs = [
-    ${inputs.map((x, i) =>
-            {
-                return `new ComfyInput<${input_to_type(x)}>(this, ${i}, "${(x.name as string).replace("\'", "\\\'")}" ${'default' in x ? `, ${JSON.stringify(x.default)}` : Array.isArray(x.type) ? `, ${JSON.stringify(x.type[0])}` : ""})`;
-            }).join(',\n')}
+    ${_inputs.join(',\n')}
     ] as const;
 
     inputs = Object.fromEntries(this._inputs.map((x, i) => [x.label, x])) as {
-        ${inputs.map(x => `"${x.name}"` + ": ComfyInput<" + input_to_type(x) + ">").join(",\n")}
+        ${((await Promise.all(inputs.map(async x => `"${x.name}"` + ": ComfyInput<" + (await input_to_type(x)) + ">")))).join(",\n")}
     };
     
-    constructor(initial_values?: {${inputs.map(x => `"${x.name}"` + (!x.required ? "?" : "") + ": ComfyOutput<" + input_to_type(x) + "> | " + input_to_type(x)).join(",\n")}})
+    constructor(initial_values?: ${clean_key}Args)
     {
         super();
         this.initialize(initial_values);
@@ -402,7 +478,7 @@ export class ${clean_key} extends ComfyNode
     }
 
 
-    console.log(success(`Created all ${Object.keys(res).length} classes.`))
+    console.log(success(`Created all ${Object.keys(node_types).length} classes.`))
     fs.writeFileSync(path.join(output_path, "index.json"), JSON.stringify(Object.fromEntries(new_index.entries())));
 }
 
