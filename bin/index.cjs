@@ -13609,7 +13609,7 @@ ${node_creations.join("\n")}`;
 }
 
 // package.json
-var version = "1.0.11";
+var version = "1.0.12";
 
 // scripts/index.ts
 program.name("comfy-code").description("Comfy-Code lets you generate typescript types and scripts from ComfyUI.").version(version);
